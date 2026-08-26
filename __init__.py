@@ -7,8 +7,8 @@
 - confyui-pose (动作/姿势/战斗系列)
 - commfyui-loraxy (多 LoRA XY 网格测试)
 
-模块职责：统一注册全部 9 个节点到 NODE_CLASS_MAPPINGS /
-NODE_DISPLAY_NAME_MAPPINGS，注册名统一带 Qianhui 前缀。
+模块职责：统一注册全部 10 个节点（10 类，剧情模块含编排/调度两节点）到
+NODE_CLASS_MAPPINGS / NODE_DISPLAY_NAME_MAPPINGS，注册名统一带 Qianhui 前缀。
 单个模块加载失败不影响其余节点。
 """
 

@@ -33,7 +33,7 @@ ComfyUI 综合提示词插件，由四个历史插件整合而成：
 
 ```
 comfyui-qianhui/
-├── __init__.py          # 注册入口 (8 节点统一 Qianhui 前缀)
+├── __init__.py          # 注册入口 (10 节点统一 Qianhui 前缀)
 ├── nodes/               # 节点实现
 │   ├── negative_node.py    # 智能负面提示词
 │   ├── story_node.py       # 剧情播放器 + 剧情编排机
