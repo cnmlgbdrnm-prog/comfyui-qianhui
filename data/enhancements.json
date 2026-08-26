@@ -1,0 +1,228 @@
+{
+    "age_enhancement": {
+        "gyaru": [
+            "stylish student",
+            "fashionable student"
+        ],
+        "college student": [
+            "young woman",
+            "university student",
+            "student"
+        ],
+        "ojou-sama": [
+            "ojou-sama",
+            "wealthy girl",
+            "noble daughter"
+        ],
+        "young adult": [
+            "young woman",
+            "in her 20s",
+            "adult female"
+        ],
+        "office lady": [
+            "office lady",
+            "OL",
+            "working woman"
+        ],
+        "mature female": [
+            "mature woman",
+            "woman in her 30s",
+            "elegant lady"
+        ],
+        "milf": [
+            "mature woman",
+            "mother",
+            "sexually mature"
+        ],
+        "noble woman": [
+            "noble woman",
+            "wealthy woman",
+            "aristocrat"
+        ],
+        "old woman": [
+            "elderly woman",
+            "grandmother",
+            "aged"
+        ],
+        "immortal": [
+            "ageless",
+            "ancient being",
+            "timeless"
+        ],
+        "chibi": [
+            "chibi",
+            "mini character",
+            "big head",
+            "small body",
+            "sd character",
+            "deformed",
+            "cute",
+            "kawaii",
+            "simple background"
+        ]
+    },
+    "race_enhancement": {
+        "furry": [
+            "furry",
+            "anthro",
+            "fluffy",
+            "animal face",
+            "snout",
+            "paw pads",
+            "claws",
+            "animal hands",
+            "full body fur",
+            "beastman"
+        ],
+        "robot girl": [
+            "mechanical parts",
+            "robot joints",
+            "mecha musume",
+            "sci-fi",
+            "human skin",
+            "organic skin",
+            "humanoid"
+        ],
+        "android": [
+            "artificial human",
+            "ball-jointed",
+            "doll joints",
+            "human skin",
+            "humanoid"
+        ],
+        "cyborg": [
+            "mechanical limbs",
+            "cybernetic enhancements",
+            "sci-fi",
+            "flesh torso",
+            "humanoid"
+        ],
+        "ball-jointed doll": [
+            "doll joints",
+            "artificial skin",
+            "porcelain skin",
+            "humanoid"
+        ],
+        "elf": [
+            "pointy ears",
+            "nature",
+            "humanoid"
+        ],
+        "dark elf": [
+            "pointy ears",
+            "dark skin",
+            "humanoid"
+        ],
+        "angel": [
+            "wings",
+            "halo",
+            "feathers",
+            "humanoid"
+        ],
+        "fallen angel": [
+            "black wings",
+            "dark halo",
+            "humanoid"
+        ],
+        "demon girl": [
+            "horns",
+            "demon wings",
+            "tail",
+            "humanoid"
+        ],
+        "succubus": [
+            "horns",
+            "bat wings",
+            "heart shaped tail",
+            "humanoid"
+        ],
+        "vampire": [
+            "pale skin",
+            "fangs",
+            "humanoid"
+        ],
+        "oni": [
+            "horns",
+            "humanoid"
+        ],
+        "ghost girl": [
+            "translucent body",
+            "pale skin",
+            "floating",
+            "hitodama",
+            "spectral fire",
+            "semi-transparent",
+            "humanoid"
+        ],
+        "zombie": [
+            "colored skin",
+            "stitches",
+            "undead",
+            "humanoid"
+        ],
+        "skeleton girl": [
+            "skull head",
+            "bony body",
+            "skeleton",
+            "ribs",
+            "humanoid"
+        ],
+        "animal ears": [
+            "animal ears",
+            "humanoid"
+        ],
+        "cat girl": [
+            "cat ears",
+            "cat tail",
+            "humanoid"
+        ],
+        "fox girl": [
+            "fox ears",
+            "fox tail",
+            "fluffy tail",
+            "humanoid"
+        ],
+        "dog girl": [
+            "dog ears",
+            "dog tail",
+            "humanoid"
+        ],
+        "wolf girl": [
+            "wolf ears",
+            "wolf tail",
+            "humanoid"
+        ],
+        "bunny girl": [
+            "rabbit ears",
+            "bunny tail",
+            "humanoid"
+        ],
+        "dragon girl": [
+            "horns",
+            "dragon wings",
+            "dragon tail",
+            "scales",
+            "humanoid"
+        ],
+        "chinese dragon girl": [
+            "loong",
+            "antlers",
+            "eastern dragon tail",
+            "scales",
+            "humanoid",
+            "human face"
+        ],
+        "slime girl": [
+            "translucent skin",
+            "liquid body",
+            "humanoid"
+        ],
+        "mermaid": [
+            "mermaid tail",
+            "fins",
+            "scales",
+            "no legs",
+            "humanoid"
+        ]
+    }
+}
