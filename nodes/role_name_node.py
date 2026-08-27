@@ -322,10 +322,18 @@ class QianhuiRandomCharacter:
 
     @classmethod
     def INPUT_TYPES(s):
+        works = sorted({v.split()[0] for v in load_owner_map().values()})
+        work_opts = [SENTINEL] + [work_display(w) for w in works]
+        names = sorted(load_owner_map().keys(),
+                       key=lambda n: (0 - load_heat().get(n, 0), n))
+        role_opts = [SENTINEL] + [role_display(n) for n in names]
         return {
             "required": {
-                "作品类型": (["🎲 随机类型", "🎮 只出游戏", "📺 只出动漫"],),
+                "作品类型": (["🎲随机类型", "🎮只出游戏", "📺只出动漫", "🎯指定作品"],),
+                "抽取分类": (list(CATEGORY_TAGS.keys()),),
                 "模型类型": (["SDXL", "anima (括号转义)"],),
+                "指定作品": (work_opts,),
+                "指定角色": (role_opts,),
             },
         }
 
@@ -371,22 +379,40 @@ class QianhuiRandomCharacter:
             return main + dis.replace("(", r"\(").replace(")", r"\)")
         return main + " " + dis
 
-    def generate_role_name(self, 作品类型, 模型类型="SDXL"):
+    def generate_role_name(self, 作品类型, 抽取分类="不限", 模型类型="SDXL",
+                           指定作品=SENTINEL, 指定角色=SENTINEL):
         groups = load_role_data()
         if not groups:
-            return ("(无角色数据)",)
+            return ("(无角色数据)", "(无角色数据)")
+        cats = load_category_map()
 
-        mode = 作品类型
+        if 作品类型 == "🎯指定作品":
+            role_name = parse_role_display(指定角色)
+            work_tag = parse_work_display(指定作品)
+            if role_name:
+                if work_tag:
+                    if role_name in groups.get(work_tag, []):
+                        return self._output(role_name, work_tag, 模型类型)
+                    role_name = None   # 角色不在所选作品 -> 走作品内随机
+                else:
+                    return self._output(role_name, None, 模型类型)
+            if work_tag and work_tag in groups:
+                pool = filter_by_category(groups[work_tag], 抽取分类, cats)
+                if not pool:
+                    return ("(无匹配角色)", "(无匹配角色)")
+                return self._output(random.choice(pool), work_tag, 模型类型)
+            作品类型 = "🎲随机类型"   # 都未指定 -> 回退随机类型
+
+        # 按类型聚合（V1 加权随机 ≈ 类型内角色均匀抽取）
         by_type = {"game": {}, "anime": {}, "other": {}}
         for cop, roles in groups.items():
             by_type[_type_of(cop)][cop] = roles
 
-        # 1. 类型: 随机模式按池大小加权抽类型; 手动模式锁定
-        if mode == "🎲 随机类型":
+        if 作品类型 == "🎲随机类型":
             weights = {t: sum(len(r) for r in pool.values()) for t, pool in by_type.items()}
             total = sum(weights.values())
             if total == 0:
-                return ("(无角色数据)",)
+                return ("(无角色数据)", "(无角色数据)")
             roll = random.random() * total
             acc = 0
             chosen_type = "other"
@@ -395,30 +421,41 @@ class QianhuiRandomCharacter:
                 if roll < acc:
                     chosen_type = t
                     break
-        elif mode == "🎮 只出游戏":
-            chosen_type = "game"
         else:
-            chosen_type = "anime"
+            chosen_type = "game" if 作品类型 == "🎮只出游戏" else "anime"
 
-        pool = by_type[chosen_type]
-        if not pool:
-            return ("(无角色数据)",)
+        pool = by_type.get(chosen_type, {})
+        names = [n for rs in pool.values() for n in rs]
+        names = filter_by_category(names, 抽取分类, cats)
+        if not names:
+            return ("(无匹配角色)", "(无匹配角色)")
+        return self._output(random.choice(names), None, 模型类型)
 
-        # 2. 随机作品 (按角色数加权)
-        cps = list(pool.keys())
-        cw = [len(pool[c]) for c in cps]
-        chosen_cop = random.choices(cps, weights=cw, k=1)[0]
-
-        # 3. 随机角色 (英文输出 + 中文显示)
-        chosen_role = random.choice(pool[chosen_cop])
-        en = self.escape_name(chosen_role, 模型类型)
-        # 英文口统一带版权括号: 角色名本身无括号消歧义时追加 (版权tag),
-        # 供提示词消歧义且符合 Danbooru 标准写法; anima 模式追加部分同样转义。
-        if "(" not in chosen_role:
-            suffix = f"({chosen_cop})"
+    def _output(self, role, cop, 模型类型):
+        """统一输出: (英文提示词名, 中文显示名)；复刻 V1 格式。
+        cop 未知时从 owner 首tag 查询; 无括号角色追加 (版权tag) 消歧义并同样转义。"""
+        en = self.escape_name(role, 模型类型)
+        if not cop:
+            cop = load_owner_map().get(role, "").split()[0]
+        if "(" not in role and cop:
+            suffix = f"({cop})"
             if "anima" in 模型类型:
                 suffix = suffix.replace("(", r"\(").replace(")", r"\)")
             en = en + " " + suffix
-        cn = load_cn_map().get(chosen_role, "")
-        cn_display = f"{cn}({chosen_cop})" if cn else en
+        cn = load_cn_map().get(role, "")
+        cn_display = f"{cn}({cop})" if cn else en
         return (en, cn_display)
+
+def build_payload():
+    """前端联动数据: 作品列表 + 每作品角色列表（均含中文名, 无则 null）"""
+    owner = load_owner_map()
+    cn = load_cn_map()
+    wcn = load_work_cn()
+    works = sorted({v.split()[0] for v in owner.values()})
+    roles_by_work = {}
+    for tag in works:
+        rs = [n for n, w in owner.items() if w.split()[0] == tag]
+        rs.sort(key=lambda n: (0 - load_heat().get(n, 0), n))
+        roles_by_work[tag] = [[n, cn.get(n) or None] for n in rs]
+    return {"works": [[t, wcn.get(t)] for t in works],
+            "roles_by_work": roles_by_work}
