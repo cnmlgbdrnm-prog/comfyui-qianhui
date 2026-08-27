@@ -1,15 +1,31 @@
 // 千绘 · 角色随机师 —— 作品→角色下拉联动
-(function () {
+// 兼容写法：老前端提供全局 app；新前端(>=0.31) 以 ES module 执行扩展,
+// 裸 app 标识符会 ReferenceError, 需动态 import 兜底。
+(async function () {
     "use strict";
     const SENTINEL = "（未指定）";
     let roleData = null;
+
+    async function getApp() {
+        if (typeof app !== "undefined") return app;   // 老环境: 全局 app
+        if (globalThis.app) return globalThis.app;
+        try {
+            const mod = await import("../../scripts/app.js");  // 新前端: ES module
+            return mod.app || globalThis.app || null;
+        } catch (e) {
+            return null;
+        }
+    }
 
     function roleLabel(entry) {
         const [name, cn] = entry;
         return cn ? cn + " (" + name + ")" : name;
     }
 
-    app.registerExtension({
+    const appRef = await getApp();
+    if (!appRef) return;
+
+    appRef.registerExtension({
         name: "qianhui.role_random",
         async beforeRegisterNodeDef(nodeType, nodeData, app) {
             if (nodeData.name !== "QianhuiRandomCharacter") return;
