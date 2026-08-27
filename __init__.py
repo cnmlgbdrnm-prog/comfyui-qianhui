@@ -95,7 +95,7 @@ except Exception as e:
 try:
     from .nodes.role_name_node import QianhuiRandomCharacter
     NODE_CLASS_MAPPINGS["QianhuiRandomCharacter"] = QianhuiRandomCharacter
-    NODE_DISPLAY_NAME_MAPPINGS["QianhuiRandomCharacter"] = "千绘 · 角色随机师 (V1)"
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiRandomCharacter"] = "千绘 · 角色随机师 (V2)"
 except Exception as e:
     print(f"❌ 千绘 角色随机模块加载失败: {e}")
 
@@ -106,5 +106,18 @@ try:
     NODE_DISPLAY_NAME_MAPPINGS["QianhuiMultiLoRAGrid"] = "千绘 · 多LoRA XY网格 (V2.6)"
 except Exception as e:
     print(f"❌ 千绘 多LoRA XY网格模块加载失败: {e}")
+
+# 8b. 前端联动数据路由（注册失败不影响其余节点）
+WEB_DIRECTORY = "./js"
+try:
+    from aiohttp import web
+    from server import PromptServer
+    from .nodes.role_name_node import build_payload
+
+    @PromptServer.instance.routes.get("/qianhui_role_data")
+    async def qianhui_role_data(request):
+        return web.json_response(build_payload())
+except Exception:
+    pass
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
