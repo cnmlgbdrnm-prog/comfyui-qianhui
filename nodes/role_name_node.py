@@ -191,6 +191,131 @@ def load_cn_map():
     return _CN_CACHE
 
 
+CATEGORY_PATH = os.path.join(DATA_DIR, "role_category.json")
+WORK_CN_PATH = os.path.join(DATA_DIR, "work_cn.json")
+
+SENTINEL = "（未指定）"
+
+# 抽取分类 -> 所需角色标签（"不限"不过滤）；"兽娘"=女+兽类, "机械娘"=女+机械
+CATEGORY_TAGS = {
+    "不限": None,
+    "女": ("female",),
+    "男": ("male",),
+    "兽类·福瑞": ("beast",),
+    "机械·人造人": ("robot",),
+    "兽娘": ("female", "beast"),
+    "机械娘": ("female", "robot"),
+}
+
+_CAT_CACHE = None
+_WORK_CN_CACHE = None
+_OWNER_CACHE = None
+_HEAT_CACHE = None
+
+
+def load_category_map():
+    """角色名 -> 标签 set; 文件缺失返回 {} (模块级缓存)"""
+    global _CAT_CACHE
+    if _CAT_CACHE is None:
+        try:
+            if os.path.exists(CATEGORY_PATH):
+                with open(CATEGORY_PATH, "r", encoding="utf-8") as f:
+                    _CAT_CACHE = {k: set(v) for k, v in json.load(f).items()}
+            else:
+                _CAT_CACHE = {}
+        except Exception:
+            _CAT_CACHE = {}
+    return _CAT_CACHE
+
+
+def load_work_cn():
+    """作品 tag -> 中文名; 文件缺失返回 {} (模块级缓存)"""
+    global _WORK_CN_CACHE
+    if _WORK_CN_CACHE is None:
+        try:
+            if os.path.exists(WORK_CN_PATH):
+                with open(WORK_CN_PATH, "r", encoding="utf-8") as f:
+                    _WORK_CN_CACHE = json.load(f)
+            else:
+                _WORK_CN_CACHE = {}
+        except Exception:
+            _WORK_CN_CACHE = {}
+    return _WORK_CN_CACHE
+
+
+def load_owner_map():
+    """角色名 -> 版权串(首段为作品 tag) (模块级缓存)"""
+    global _OWNER_CACHE
+    if _OWNER_CACHE is None:
+        try:
+            with open(ROLE_OWNER_PATH, "r", encoding="utf-8") as f:
+                _OWNER_CACHE = json.load(f)
+        except Exception:
+            _OWNER_CACHE = {}
+    return _OWNER_CACHE
+
+
+def load_heat():
+    """角色名 -> post_count (模块级缓存, 用于热门排序)"""
+    global _HEAT_CACHE
+    if _HEAT_CACHE is None:
+        try:
+            with open(ROLE_NAMES_PATH, "r", encoding="utf-8") as f:
+                _HEAT_CACHE = {r["name"]: r["post_count"]
+                               for r in json.load(f).get("role_names", [])}
+        except Exception:
+            _HEAT_CACHE = {}
+    return _HEAT_CACHE
+
+
+def work_display(tag):
+    """作品下拉展示: 中文名 (tag); 无中文名回退 tag"""
+    cn = load_work_cn().get(tag)
+    return f"{cn} ({tag})" if cn else tag
+
+
+def role_display(name):
+    """角色下拉展示: 中文名 (danbooru名); 无中文名回退原名"""
+    cn = load_cn_map().get(name, "")
+    return f"{cn} ({name})" if cn else name
+
+
+def parse_work_display(v):
+    """作品展示值 -> tag; SENTINEL/空 -> None（取最后一个 ' (' 拆分, 剥一个展示追加的 ')'）"""
+    if v in (None, SENTINEL):
+        return None
+    i = v.rfind(" (")
+    if i == -1:
+        return v.strip()
+    t = v[i + 2:].strip()
+    if t.endswith(")"):
+        t = t[:-1].strip()
+    return t
+
+
+def parse_role_display(v):
+    """角色展示值 -> danbooru 名; SENTINEL/空 -> None"""
+    if v in (None, SENTINEL):
+        return None
+    i = v.rfind(" (")
+    if i == -1:
+        return v.strip()
+    t = v[i + 2:].strip()
+    if t.endswith(")"):
+        t = t[:-1].strip()
+    return t
+
+
+def filter_by_category(names, cat_key, cats=None):
+    """按抽取分类过滤: 不限 返回原列表; 否则要求所需标签全命中"""
+    cats = cats if cats is not None else load_category_map()
+    need = CATEGORY_TAGS.get(cat_key)
+    if not need:
+        return list(names)
+    need = set(need)
+    return [n for n in names if need.issubset(cats.get(n, set()))]
+
+
 class QianhuiRandomCharacter:
     def __init__(self):
         pass
