@@ -791,8 +791,12 @@ CONTEXT_SOURCES = {
 
 # T6 机检实测的字段数与并集：41 / 3 / 28 / 27，并集 50 = YoloRunContext 的字段数。
 #
-# ★ 这是**反空转**的绊线：某个来源模块被改名/搬走时 `_ctx_reads` 会算出空集，
-#   下面的包含式断言（差集 ⊆ 空集）会**空转通过**，只有这里会让「读到 0 个」当场红。
+# ★ 它钉的是**「两边一起长」**：给某个 Context 加一个字段、**同时**在它的来源模块里读它，
+#   用例 1/2/3 会**全绿**（集合双向闭合，没破），只有这里红
+#   —— 因为那个字段 `YoloRunContext` 从来没有过，并集也不再是 50。
+#   （订正：早先这里写「模块被改名 ⇒ `_ctx_reads` 算空集 ⇒ 包含式断言空转通过」，
+#     那个理由是**错的**：真·改名会让 `io.open` 抛 FileNotFoundError；
+#     把基底名换掉只红用例 2/3，用例 4 不红。详见报告 §修复轮 1。）
 #   预期会触发它的改动：T8~T11 各节点接线（读法变了）、T13 删 prepare_run/单体。
 #   改动时先确认是真改了归属，并在**同一个提交**里说明为什么。
 EXPECTED_CTX_FIELD_COUNTS = {
@@ -867,6 +871,24 @@ def _slim_context_slots():
             if isinstance(st, ast.AnnAssign) and isinstance(st.target, ast.Name)
         }
     return out
+
+
+def _field_specs(cls_node):
+    """ClassDef → `{字段名: (注解 unparse, 默认值 unparse 或 None)}`。
+
+    `None` 表示该字段没有默认值（如 `cfg: YoloConfig`）。
+    用 `ast.unparse` 而不是取源码切片：它对缩进/换行/行尾注释免疫，
+    只留下**语义**等价的那部分（`int` vs `float`、`20` vs `21`、
+    `field(default_factory=list)` vs `field(default_factory=set)` 都能分辨）。
+    """
+    return {
+        st.target.id: (
+            ast.unparse(st.annotation),
+            None if st.value is None else ast.unparse(st.value),
+        )
+        for st in cls_node.body
+        if isinstance(st, ast.AnnAssign) and isinstance(st.target, ast.Name)
+    }
 
 
 def _context_source_reads(class_name):
@@ -969,12 +991,69 @@ class TestSlimContexts(unittest.TestCase):
             % sorted(union - stage_reads),
         )
 
-    def test_context_field_counts_are_frozen(self):
-        """★ 反空转的网：4 个字段数与并集写死。
+    def test_context_fields_are_same_source_as_yolo_run_context(self):
+        """★ 同名字段的**注解与默认值**必须与 `YoloRunContext` 逐字一致。
 
-        上面的包含式断言是「差集为空」：某个来源模块一旦解析不到（改名、搬走），
-        `_ctx_reads` 算出空集，它们会**空转通过**。这条把计数钉死，
-        让「读到 0 个」当场红。
+        字段名对上还不够：`步数: int = 20` 被改成 `= 21`、`interrupted` 从 `False`
+        改成 `True`、`default_factory=list` 换成 `set` —— 三种退化都**编译得过、
+        跑得动、界面上看不出来**，只是运行期行为变了。简报步骤 3 把「默认值也要照抄」
+        点名为最要紧的一处，而用例 1/2/3 只比**字段名集合**，对默认值一言不发。
+        这条填的就是那个洞。
+
+        注解**顺手一起比**（同一趟遍历，零成本）：`int` 写成 `float` 同样只在这条网里现形。
+
+        ★ 参照物取的是 `YoloRunContext` 的 `{名: (注解 dump, 默认值 dump)}` —— 也就是
+          **拆分的源头**（这 4 个类本来就是从它切出来的）。于是这条网问的是
+          「切出来的每一片，是不是和原件一模一样」，而不是「值看起来对不对」。
+
+        ★ **刻意不比「声明顺序」**：顺序只在「按位置传参构造」时才有行为差异，
+          而 4 个节点一律**关键字构造**（`DetectCtx(cfg=..., 模型=...)`）；
+          真正危险的错序 —— 无默认值字段排在有默认值字段之后 —— Python 在
+          **类创建时**就抛 `TypeError`，是当场崩，不是静默失效。故不设此网。
+
+        ★ T13 交接：`YoloRunContext` 会被删，本用例的参照物也就没了。届时把参照物
+          改为本文件内**冻结的** `{名: (注解 dump, 默认值 dump)}` 快照
+          （同 `CONTEXT_KEY_SNAPSHOT` 的做法），**别把这道网静静丢掉**。
+        """
+        defs = _context_classdefs()
+        base_node = defs.get("YoloRunContext")
+        self.assertIsNotNone(
+            base_node,
+            "context.py 里找不到 YoloRunContext —— 本用例的参照物。"
+            "T13 删它时请照 docstring 的交接说明改成冻结快照，不要直接删掉本用例。",
+        )
+        base = _field_specs(base_node)
+
+        for name in sorted(CONTEXT_SOURCES):
+            cls = defs.get(name)
+            self.assertIsNotNone(cls, "context.py 里找不到类 %s" % name)
+            specs = _field_specs(cls)
+            bad = [
+                "    %s.%s: YoloRunContext 是 %r，这里是 %r" % (name, f, base[f], spec)
+                for f, spec in sorted(specs.items())
+                if f in base and base[f] != spec
+            ]
+            self.assertEqual(
+                bad, [],
+                "%s 里这些字段的**注解或默认值**与 YoloRunContext 的同名字段不一致：\n"
+                "%s\n"
+                "  ⇒ 默认值不同会**改运行期行为**：编译得过、跑得动、界面上看不出来。\n"
+                "  字段名逐字一致还不够 —— 它必须与 YoloRunContext 是**同源的一份拷贝**。"
+                % (name, "\n".join(bad)),
+            )
+
+    def test_context_field_counts_are_frozen(self):
+        """★ 钉「两边一起长」：4 个字段数与并集写死。
+
+        它护的是**集合双向闭合之外**的那一类退化：给某个 Context 加一个字段、
+        **同时**在它的来源模块里读它 —— 用例 1（slots ⊇ 读集）、2（并集 == 读集）、
+        3（slots ⊆ 读集）会**全绿**，因为两边一起长了、闭合没破。
+        可那字段是 `YoloRunContext` 从来没有的，并集也不再是 50 —— 只有这条会红。
+
+        （订正：本用例的说明早先写成「来源模块被改名 ⇒ `_ctx_reads` 算出空集 ⇒
+          包含式断言空转通过」。那个理由是**错的**：真·改名会让 `io.open` 抛
+          `FileNotFoundError`；把基底名换掉只红用例 2/3，本用例不红。
+          详见报告 §修复轮 1 的 P2 / P5。）
 
         ★ 改动这些数字**必须在同一个提交里说明为什么**
         （预期触发者：T8~T11 各节点接线、T13 删 prepare_run/单体）。
