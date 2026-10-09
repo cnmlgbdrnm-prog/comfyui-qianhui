@@ -692,6 +692,12 @@ Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运
 
 **`base_node.py` 只搬 `upscale_latent`**。源 1242-1265 的 `INPUT_TYPES` 与 1284-1317 的 `process` 从未被调用（该基类未注册），不再移植。
 
+> 源 1266-1283 是**类体内的缩进片段**（首行就是 `    def upscale_latent(...)`），
+> 直接 `ast.parse` 会 `IndentationError: unexpected indent`。要自己补 `class LatentKSamplerUpscaler:`
+> 这一行再放进去。`upscale_latent` **没有装饰器**（源 `def@1266`，上一行 1265 是空行），
+> 别被 `algorithms.py` 那一堆 `@staticmethod` 带偏。搬完用
+> `python -X utf8 -c "import ast,io; ast.parse(io.open('nodes/qianhui_latent_yolo/base_node.py',encoding='utf-8').read())"` 过一遍。
+
 **`_extract_hand_skeleton`（1789-1887）归 `inpaint.py`，保持实例方法原样不动**——它虽不引用 `self`，但唯一调用点在同属精修流程的 5093 行，放同一个 Mixin 可完全避免改造调用点，符合「只改所在文件、不改方法体」的约束。（早期草案曾计划挪到 `controlnet.py` 并改成模块级函数，会违反该约束，已废弃。）
 
 - [ ] **步骤 6：切 6 个 Mixin**
