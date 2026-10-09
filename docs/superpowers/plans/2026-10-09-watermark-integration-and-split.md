@@ -1942,11 +1942,38 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - 整合自水印插件的 3 个节点**不保留旧注册名**（`LatentKSamplerUpscalerYOLO`、`WatermarkAdd`、`WatermarkExtract` 及中文别名），旧 workflow 需重新选择节点。
 ```
 
+**本步骤还有第三件事：`__init__.py` 的模块头也点了这些数，要一起改。**
+本任务叫「文档同步」，而 `__init__.py` 顶部的模块 docstring 就是文档，
+它**同样**硬点了插件数与节点数，改完 README 不改它，两份文档当场打架：
+
+```python
+由四个历史插件整合而成：          # __init__.py:4  → 五个
+- comfyui-FMC (智能负面提示词)
+- ComfyUIcustom_nodes (剧情/角色/场景系列)
+- confyui-pose (动作/姿势/战斗系列)
+- commfyui-loraxy (多 LoRA XY 网格测试)   # ← 这 4 条之后要加第 5 条
+
+模块职责：统一注册全部 10 个节点（10 类，剧情模块含编排/调度两节点）到   # :10 → 13 个节点（13 类…）
+```
+
+具体改法：
+1. `:4` `由四个历史插件整合而成：` → `由五个历史插件整合而成：`
+2. 在 `:8` 那条 `- commfyui-loraxy …` 之后补第 5 条来源插件，与 README 表格新增行同源：
+   `- 水印插件 (Latent YOLO 智能修复 / 水印添加 / 水印提取)`
+3. `:10` `统一注册全部 10 个节点（10 类，…）` → `统一注册全部 13 个节点（13 类，…）`，
+   括号里的「剧情模块含编排/调度两节点」原样保留（13 个注册名对应 13 个类，逐一互异，机读确认）。
+
+> ⚠️ 括号里的 `（10 类，…）` 不是「分组分类数」——分类数是 10 个没错，但那是巧合：
+> 改造后分类仍是 **10 个**（8 旧 + 修复 + 水印），而**类数**是 **13**。
+> 这两个 10 现在数值相同、改完全不同，**别把括号里的 10 一起当成分类数不动**。
+> 判据：同一句里说的是「注册全部 N 个节点」的一个**节点/类**计数，
+> 故两个 10 都要变成 13。
+
 - [ ] **步骤 3：提交**
 
 ```bash
-git add README.md
-git commit -m "docs: README 补入整合的 3 个节点、目录结构与 reedsolo 依赖说明
+git add README.md __init__.py
+git commit -m "docs: README + __init__.py 模块头同步整合后的插件数/节点数与新目录
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
