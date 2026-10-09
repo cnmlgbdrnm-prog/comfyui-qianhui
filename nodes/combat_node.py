@@ -83,15 +83,15 @@ class QianhuiCombatMaster:
 
         return {
             "required": {
-                "00_🔥激战模式": ("BOOLEAN", {"default": False, "label_on": "🔥 随机激战 (Chaos)", "label_off": "🔒 手动指令 (Tactical)"}),
-                "01_🗡️武器装备": (COMBAT_DATA["weapons"],),
+                "🔥激战模式": ("BOOLEAN", {"default": False, "label_on": "🔥 随机激战 (Chaos)", "label_off": "🔒 手动指令 (Tactical)"}),
+                "🗡️武器装备": (COMBAT_DATA["weapons"],),
                 # 过滤 "---" 分组标题行, 手动模式下也不可选中
-                "02_👊攻击姿态": ([x for x in COMBAT_DATA["actions"] if not x.startswith("---")],),
-                "03_🩸战损程度": (COMBAT_DATA["damage"],),
-                "04_✨技能特效": (COMBAT_DATA["vfx"],),
-                "05_📸战斗运镜": (COMBAT_DATA["camera"],),
-                "07_模型类型": (["SDXL", "anima (权重2~5)"],),
-                "06_补充指令": ("STRING", {"default": "", "multiline": False, "placeholder": "如: explosion background, glowing eyes"}),
+                "👊攻击姿态": ([x for x in COMBAT_DATA["actions"] if not x.startswith("---")],),
+                "🩸战损程度": (COMBAT_DATA["damage"],),
+                "✨技能特效": (COMBAT_DATA["vfx"],),
+                "📸战斗运镜": (COMBAT_DATA["camera"],),
+                "模型类型": (["SDXL", "anima (权重2~5)"],),
+                "补充指令": ("STRING", {"default": "", "multiline": False, "placeholder": "如: explosion background, glowing eyes"}),
             }
         }
 
@@ -102,7 +102,7 @@ class QianhuiCombatMaster:
 
     @classmethod
     def IS_CHANGED(s, **kwargs):
-        if kwargs.get("00_🔥激战模式", False):
+        if kwargs.get("🔥激战模式", False):
             return time.time()
         return False
 
@@ -132,10 +132,10 @@ class QianhuiCombatMaster:
             return random.choice(pool)
 
         # --- 1. 数据准备 ---
-        is_random = kwargs["00_🔥激战模式"]
+        is_random = kwargs["🔥激战模式"]
         # 模型类型: anima 权重规范 2~5, 只给氛围与武器加权(最多2个),
         # 特效/保底运镜去权重纯标签, 符合 anima"权重少而精"规范
-        is_anima = "anima" in kwargs.get("07_模型类型", "SDXL")
+        is_anima = "anima" in kwargs.get("模型类型", "SDXL")
 
         # 定义槽位
         slot_camera = ""
@@ -172,11 +172,11 @@ class QianhuiCombatMaster:
                 slot_camera = "motion blur, depth of field, dynamic angle" if is_anima else "motion blur, depth of field, (dynamic angle:1.3)"
         else:
             # === 手动模式 (Tactical Mode) ===
-            slot_weapon = extract(kwargs["01_🗡️武器装备"])
-            slot_action = extract(kwargs["02_👊攻击姿态"])
-            slot_damage = extract(kwargs["03_🩸战损程度"])
-            slot_vfx = extract(kwargs["04_✨技能特效"])
-            slot_camera = extract(kwargs["05_📸战斗运镜"])
+            slot_weapon = extract(kwargs["🗡️武器装备"])
+            slot_action = extract(kwargs["👊攻击姿态"])
+            slot_damage = extract(kwargs["🩸战损程度"])
+            slot_vfx = extract(kwargs["✨技能特效"])
+            slot_camera = extract(kwargs["📸战斗运镜"])
 
         # --- 2. 核心优化：按逻辑顺序组装 ---
         # 目标顺序：视角 -> 武器 -> 招式 -> 特效 -> 战损
@@ -207,7 +207,7 @@ class QianhuiCombatMaster:
         if slot_damage: ordered_parts.append(slot_damage)
 
         # [6] 手动补充指令 (Manual Add) - 最后补充细节
-        manual_add = kwargs.get("06_补充指令", "").strip()
+        manual_add = kwargs.get("补充指令", "").strip()
         if manual_add: ordered_parts.append(manual_add)
 
         # --- 3. 生成最终字符串 ---

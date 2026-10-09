@@ -91,28 +91,28 @@ class QianhuiActionMaster:
 
         return {
             "required": {
-                "00_🎲随机动作模式": ("BOOLEAN", {"default": False, "label_on": "🎲 智能随机 (Auto)", "label_off": "🔒 手动指定 (Manual)"}),
-                "07_🎲随机表情开关": ("BOOLEAN", {"default": False, "label_on": "🤪 随机表情 (ON)", "label_off": "😐 锁定表情 (OFF)"}),
+                "🎲随机动作模式": ("BOOLEAN", {"default": False, "label_on": "🎲 智能随机 (Auto)", "label_off": "🔒 手动指定 (Manual)"}),
+                "🎲随机表情开关": ("BOOLEAN", {"default": False, "label_on": "🤪 随机表情 (ON)", "label_off": "😐 锁定表情 (OFF)"}),
 
                 # 基础层
-                "05_特殊视角": (POSE_DATA["view"],),
-                "01_全身基础": (POSE_DATA["global"],),
-                "02_头部/视线": (POSE_DATA["head"],),
+                "特殊视角": (POSE_DATA["view"],),
+                "全身基础": (POSE_DATA["global"],),
+                "头部/视线": (POSE_DATA["head"],),
 
                 # 手部层 (拆分)
-                "03_👐双手动作": (POSE_DATA["hands_dual"],),
-                "03_👈左手动作": (POSE_DATA["hands_left"],),
-                "03_👉右手动作": (POSE_DATA["hands_right"],),
+                "👐双手动作": (POSE_DATA["hands_dual"],),
+                "👈左手动作": (POSE_DATA["hands_left"],),
+                "👉右手动作": (POSE_DATA["hands_right"],),
 
                 # 腿部层 (拆分)
-                "04_🦵双脚动作": (POSE_DATA["legs_dual"],),
-                "04_🦵左脚动作": (POSE_DATA["legs_left"],),
-                "04_🦵右脚动作": (POSE_DATA["legs_right"],),
+                "🦵双脚动作": (POSE_DATA["legs_dual"],),
+                "🦵左脚动作": (POSE_DATA["legs_left"],),
+                "🦵右脚动作": (POSE_DATA["legs_right"],),
 
                 # 细节层
-                "08_表情细节": (POSE_DATA["expressions"],),
-                "06_手动补充": ("STRING", {"default": "", "multiline": False, "placeholder": "额外补充 tag..."}),
-                "09_模型类型": (["SDXL", "anima (权重2~5)"],),
+                "表情细节": (POSE_DATA["expressions"],),
+                "手动补充": ("STRING", {"default": "", "multiline": False, "placeholder": "额外补充 tag..."}),
+                "模型类型": (["SDXL", "anima (权重2~5)"],),
             }
         }
 
@@ -125,7 +125,7 @@ class QianhuiActionMaster:
     def IS_CHANGED(s, **kwargs):
         # 随机动作模式 或 随机表情开关 任一开启时每次强制刷新，
         # 否则 ComfyUI 会缓存结果导致"随机"不生效
-        if kwargs.get("00_🎲随机动作模式", False) or kwargs.get("07_🎲随机表情开关", False):
+        if kwargs.get("🎲随机动作模式", False) or kwargs.get("🎲随机表情开关", False):
             return time.time()
         return False
 
@@ -160,10 +160,10 @@ class QianhuiActionMaster:
             "manual": ""
         }
 
-        is_auto = kwargs["00_🎲随机动作模式"]
+        is_auto = kwargs["🎲随机动作模式"]
         # 模型类型: SDXL 权重习惯 (:1.2 轻强调); anima 权重规范 2~5,
         # 核心动作 2 起步, 细节/表情不再加权(anima 官方规范: 权重少而精, 最多4个)
-        is_anima = "anima" in kwargs.get("09_模型类型", "SDXL")
+        is_anima = "anima" in kwargs.get("模型类型", "SDXL")
         w_global = ":2)" if is_anima else ":1.2)"
 
         # ===========================
@@ -176,8 +176,8 @@ class QianhuiActionMaster:
             parts["global"] = pick_random("global")
             if not parts["global"]: parts["global"] = "standing"
         else:
-            parts["view"] = extract(kwargs["05_特殊视角"])
-            parts["global"] = extract(kwargs["01_全身基础"])
+            parts["view"] = extract(kwargs["特殊视角"])
+            parts["global"] = extract(kwargs["全身基础"])
 
         # 简单的状态推断，用于辅助决策 (可选)
         g_lower = parts["global"].lower()
@@ -211,9 +211,9 @@ class QianhuiActionMaster:
                         if h_right: parts["hands"].append(h_right)
         else:
             # 手动模式：全部读取
-            h_dual = extract(kwargs["03_👐双手动作"])
-            h_left = extract(kwargs["03_👈左手动作"])
-            h_right = extract(kwargs["03_👉右手动作"])
+            h_dual = extract(kwargs["👐双手动作"])
+            h_left = extract(kwargs["👈左手动作"])
+            h_right = extract(kwargs["👉右手动作"])
 
             if h_dual: parts["hands"].append(h_dual)
             if h_left: parts["hands"].append(h_left)
@@ -259,9 +259,9 @@ class QianhuiActionMaster:
                             parts["legs"] = [parts["legs"][0]]
         else:
             # 手动模式
-            l_dual = extract(kwargs["04_🦵双脚动作"])
-            l_left = extract(kwargs["04_🦵左脚动作"])
-            l_right = extract(kwargs["04_🦵右脚动作"])
+            l_dual = extract(kwargs["🦵双脚动作"])
+            l_left = extract(kwargs["🦵左脚动作"])
+            l_right = extract(kwargs["🦵右脚动作"])
 
             if l_dual: parts["legs"].append(l_dual)
             if l_left: parts["legs"].append(l_left)
@@ -279,12 +279,12 @@ class QianhuiActionMaster:
             else:
                 parts["head"] = pick_random("head")
         else:
-            parts["head"] = extract(kwargs["02_头部/视线"])
+            parts["head"] = extract(kwargs["头部/视线"])
 
-        if kwargs["07_🎲随机表情开关"]:
+        if kwargs["🎲随机表情开关"]:
             parts["expression"] = pick_random("expressions")
         else:
-            parts["expression"] = extract(kwargs["08_表情细节"])
+            parts["expression"] = extract(kwargs["表情细节"])
 
         if not parts["expression"]:
             # anima 下纯标签(权重1.0无意义), SDXL 保留权重写法
@@ -301,7 +301,7 @@ class QianhuiActionMaster:
             parts["hands"] = [h.replace("_", " ") for h in parts["hands"]]
             parts["legs"] = [l.replace("_", " ") for l in parts["legs"]]
 
-        parts["manual"] = kwargs.get("06_手动补充", "").strip()
+        parts["manual"] = kwargs.get("手动补充", "").strip()
 
         # 核心顺序: View -> Global -> Head -> Hands -> Legs -> Expression -> Manual
         final_list = []

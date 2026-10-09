@@ -292,25 +292,25 @@ class QianhuiSceneMaster:
         return {
             "required": {
                 # --- 场景 ---
-                "01_地点选择": (SCENE_DATA["location"],),
+                "地点选择": (SCENE_DATA["location"],),
 
                 # --- 时空 ---
-                "02a_季节": (SCENE_DATA["season"],),
-                "02b_天气": (SCENE_DATA["weather"],),
-                "02c_时间": (SCENE_DATA["time"],),
+                "季节": (SCENE_DATA["season"],),
+                "天气": (SCENE_DATA["weather"],),
+                "时间": (SCENE_DATA["time"],),
 
                 # --- 光效 ---
-                "03_光效_整体氛围": (SCENE_DATA["lighting_combo"],),
-                "04_光效_独立光源": (SCENE_DATA["lighting_single"],),
+                "光效_整体氛围": (SCENE_DATA["lighting_combo"],),
+                "光效_独立光源": (SCENE_DATA["lighting_single"],),
 
                 # --- 质感 ---
-                "05_画面画质风格": (SCENE_DATA["visual_style"],),
-                "06_全局衣物质感": (SCENE_DATA["clothing_texture"],),
+                "画面画质风格": (SCENE_DATA["visual_style"],),
+                "全局衣物质感": (SCENE_DATA["clothing_texture"],),
 
                 # --- 控制 ---
-                "07_手动补充": ("STRING", {"default": "", "multiline": False, "placeholder": "如: fire, explosion, underwater"}),
-                "08_环境总权重": ("FLOAT", {"default": 1.1, "min": 0.5, "max": 1.6, "step": 0.1, "display": "slider"}),
-                "09_氛围句": (SCENE_DATA["atmosphere"],),
+                "手动补充": ("STRING", {"default": "", "multiline": False, "placeholder": "如: fire, explosion, underwater"}),
+                "环境总权重": ("FLOAT", {"default": 1.1, "min": 0.5, "max": 1.6, "step": 0.1, "display": "slider"}),
+                "氛围句": (SCENE_DATA["atmosphere"],),
             }
         }
 
@@ -335,16 +335,16 @@ class QianhuiSceneMaster:
         parts = []
 
         # 1. 提取所有 Tag
-        loc = extract(kwargs["01_地点选择"])
-        season = extract(kwargs["02a_季节"])
-        weather = extract(kwargs["02b_天气"])
-        time_of_day = extract(kwargs["02c_时间"])
-        combo = extract(kwargs["03_光效_整体氛围"])
-        single = extract(kwargs["04_光效_独立光源"])
-        visual = extract(kwargs["05_画面画质风格"])
-        texture = extract(kwargs["06_全局衣物质感"])
-        atmo = extract(kwargs["09_氛围句"])
-        manual = kwargs.get("07_手动补充", "").strip()
+        loc = extract(kwargs["地点选择"])
+        season = extract(kwargs["季节"])
+        weather = extract(kwargs["天气"])
+        time_of_day = extract(kwargs["时间"])
+        combo = extract(kwargs["光效_整体氛围"])
+        single = extract(kwargs["光效_独立光源"])
+        visual = extract(kwargs["画面画质风格"])
+        texture = extract(kwargs["全局衣物质感"])
+        atmo = extract(kwargs["氛围句"])
+        manual = kwargs.get("手动补充", "").strip()
 
         # 2. 智能拼接 (构建画面层级)
         # 地点是基础
@@ -369,7 +369,7 @@ class QianhuiSceneMaster:
         if manual: parts.append(manual)
 
         content = ", ".join(parts)
-        weight = kwargs["08_环境总权重"]
+        weight = kwargs["环境总权重"]
 
         # 3. 权重逻辑
         # 权重滑杆全局加权 (权重1.0即纯标签); anima 用户权重设 1.0

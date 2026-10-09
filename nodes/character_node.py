@@ -104,47 +104,47 @@ class QianhuiCharacterCreator:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "00_工作安全策略": (["🟢 安全模式 (SFW)", "🔞 绅士模式 (NSFW)", "⚪ 默认/无限制 (Default)"],),
+                "工作安全策略": (["🟢 安全模式 (SFW)", "🔞 绅士模式 (NSFW)", "⚪ 默认/无限制 (Default)"],),
                 # --- 1. 核心 ---
-                "01_身份": (get_list(IDENTITY_DATA, "identity"),),
-                "02_年龄与人设": (get_list(IDENTITY_DATA, "age"),),
-                "03_种族": (get_list(IDENTITY_DATA, "race"),),
+                "身份": (get_list(IDENTITY_DATA, "identity"),),
+                "年龄与人设": (get_list(IDENTITY_DATA, "age"),),
+                "种族": (get_list(IDENTITY_DATA, "race"),),
                 # --- 2. 身体 ---
-                "04_体型": (get_list(BODY_DATA, "body_type"),),
-                "05_肤色": (get_list(BODY_DATA, "skin_color"),),
-                "06_胸部": (get_list(BODY_DATA, "breast_size"),),
+                "体型": (get_list(BODY_DATA, "body_type"),),
+                "肤色": (get_list(BODY_DATA, "skin_color"),),
+                "胸部": (get_list(BODY_DATA, "breast_size"),),
                 # --- 3. 头部 ---
-                "07_发型": (get_list(HEAD_DATA, "hair_style"),),
-                "08_发色": (COLORS,),
-                "09_头发长度": (get_list(HEAD_DATA, "hair_length"),),
-                "10_瞳色": (get_list(HEAD_DATA, "eye_color"),),
-                "11_瞳孔样式": (get_list(HEAD_DATA, "pupil_style"),),
-                "12_面部特征": (get_list(HEAD_DATA, "face_features"),),
-                "13_表情": (get_list(HEAD_DATA, "expression"),),
+                "发型": (get_list(HEAD_DATA, "hair_style"),),
+                "发色": (COLORS,),
+                "头发长度": (get_list(HEAD_DATA, "hair_length"),),
+                "瞳色": (get_list(HEAD_DATA, "eye_color"),),
+                "瞳孔样式": (get_list(HEAD_DATA, "pupil_style"),),
+                "面部特征": (get_list(HEAD_DATA, "face_features"),),
+                "表情": (get_list(HEAD_DATA, "expression"),),
                 # --- 4. 服装与材质 ---
-                "14_套装选择": (get_list(CLOTHING_DATA, "suit_style"),),
-                "15_套装颜色": (COLORS,),
-                "16_上装款式": (get_list(CLOTHING_DATA, "top_style"),),
-                "17_上装颜色": (COLORS,),
-                "18_下装款式": (get_list(CLOTHING_DATA, "bottom_style"),),
-                "19_下装颜色": (COLORS,),
-                "20_服装材质": (get_list(CLOTHING_DATA, "fabric_material"),),
+                "套装选择": (get_list(CLOTHING_DATA, "suit_style"),),
+                "套装颜色": (COLORS,),
+                "上装款式": (get_list(CLOTHING_DATA, "top_style"),),
+                "上装颜色": (COLORS,),
+                "下装款式": (get_list(CLOTHING_DATA, "bottom_style"),),
+                "下装颜色": (COLORS,),
+                "服装材质": (get_list(CLOTHING_DATA, "fabric_material"),),
                 # --- 5. 细节 ---
-                "21_腿部特征": (get_list(CLOTHING_DATA, "leg_feature"),),
-                "22_袜饰": (get_list(CLOTHING_DATA, "socks_style"),),
-                "23_袜饰颜色": (COLORS,),
-                "24_鞋子": (get_list(CLOTHING_DATA, "shoes_style"),),
-                "25_鞋子颜色": (COLORS,),
+                "腿部特征": (get_list(CLOTHING_DATA, "leg_feature"),),
+                "袜饰": (get_list(CLOTHING_DATA, "socks_style"),),
+                "袜饰颜色": (COLORS,),
+                "鞋子": (get_list(CLOTHING_DATA, "shoes_style"),),
+                "鞋子颜色": (COLORS,),
                 # --- 6. 饰品 ---
-                "26_头饰": (get_list(ACCESSORIES_DATA, "acc_head"),),
-                "27_面饰": (get_list(ACCESSORIES_DATA, "acc_face"),),
-                "28_颈饰": (get_list(ACCESSORIES_DATA, "acc_neck"),),
-                "29_手部饰品": (get_list(ACCESSORIES_DATA, "acc_hand"),),
-                "30_特殊饰品": (get_list(ACCESSORIES_DATA, "acc_special"),),
+                "头饰": (get_list(ACCESSORIES_DATA, "acc_head"),),
+                "面饰": (get_list(ACCESSORIES_DATA, "acc_face"),),
+                "颈饰": (get_list(ACCESSORIES_DATA, "acc_neck"),),
+                "手部饰品": (get_list(ACCESSORIES_DATA, "acc_hand"),),
+                "特殊饰品": (get_list(ACCESSORIES_DATA, "acc_special"),),
                 # --- 7. 扩展 ---
-                "31_构图范围": (get_list(COMPOSITION_DATA, "shot_type"),),
-                "32_Lora触发词": ("STRING", {"default": "", "placeholder": "输入Lora触发词 (会自动融合)"}),
-                "33_手动补充": ("STRING", {"default": "", "multiline": True, "placeholder": "在这里输入自定义 Tag..."}),
+                "构图范围": (get_list(COMPOSITION_DATA, "shot_type"),),
+                "Lora触发词": ("STRING", {"default": "", "placeholder": "输入Lora触发词 (会自动融合)"}),
+                "手动补充": ("STRING", {"default": "", "multiline": True, "placeholder": "在这里输入自定义 Tag..."}),
             }
         }
 
@@ -230,7 +230,7 @@ class QianhuiCharacterCreator:
         # ==========================================
         # 0. 安全策略
         # ==========================================
-        safety_opt = kwargs["00_工作安全策略"]
+        safety_opt = kwargs["工作安全策略"]
         is_nsfw_mode = "🔞" in safety_opt
 
         if "🟢" in safety_opt:
@@ -241,10 +241,10 @@ class QianhuiCharacterCreator:
         # ==========================================
         # 1. 核心身份
         # ==========================================
-        raw_identity = extract(kwargs["01_身份"])
-        raw_age = extract(kwargs["02_年龄与人设"])
-        raw_race = extract(kwargs["03_种族"])
-        lora_trigger = kwargs.get("32_Lora触发词", "").strip()
+        raw_identity = extract(kwargs["身份"])
+        raw_age = extract(kwargs["年龄与人设"])
+        raw_race = extract(kwargs["种族"])
+        lora_trigger = kwargs.get("Lora触发词", "").strip()
 
         main_identity = raw_identity or "1girl"
 
@@ -286,14 +286,14 @@ class QianhuiCharacterCreator:
         # ==========================================
         # 2. 身体
         # ==========================================
-        body_tag = extract(kwargs["04_体型"])
+        body_tag = extract(kwargs["体型"])
         if body_tag:
             parts.append(f"({body_tag}:1.35)")
 
-        parts.append(wrap(extract(kwargs["05_肤色"])))
+        parts.append(wrap(extract(kwargs["肤色"])))
 
         # 胸部 - 直接输出，不做任何限制
-        breast = extract(kwargs["06_胸部"])
+        breast = extract(kwargs["胸部"])
         if breast:
             is_robot = self._is_robot_race(raw_race)
             if is_robot and is_nsfw_mode:
@@ -305,9 +305,9 @@ class QianhuiCharacterCreator:
         # 3. 头发
         # ==========================================
         hair_parts = []
-        h_color = extract(kwargs["08_发色"])
-        h_style = extract(kwargs["07_发型"])
-        h_len = extract(kwargs["09_头发长度"])
+        h_color = extract(kwargs["发色"])
+        h_style = extract(kwargs["发型"])
+        h_len = extract(kwargs["头发长度"])
 
         if h_color:
             hair_parts.append(f"{h_color} hair")
@@ -319,14 +319,14 @@ class QianhuiCharacterCreator:
         if hair_parts:
             parts.append(f"({', '.join(hair_parts)})")
 
-        parts.append(wrap(extract(kwargs["26_头饰"])))
+        parts.append(wrap(extract(kwargs["头饰"])))
 
         # ==========================================
         # 4. 脸部
         # ==========================================
         eyes_parts = []
-        e_color = extract(kwargs["10_瞳色"])
-        e_pupil = extract(kwargs["11_瞳孔样式"])
+        e_color = extract(kwargs["瞳色"])
+        e_pupil = extract(kwargs["瞳孔样式"])
         if e_color:
             eyes_parts.append(e_color)
         if e_pupil:
@@ -334,17 +334,17 @@ class QianhuiCharacterCreator:
         if eyes_parts:
             parts.append(f"({', '.join(eyes_parts)})")
 
-        parts.append(wrap(extract(kwargs["12_面部特征"])))
-        parts.append(wrap(extract(kwargs["13_表情"])))
-        parts.append(wrap(extract(kwargs["27_面饰"])))
+        parts.append(wrap(extract(kwargs["面部特征"])))
+        parts.append(wrap(extract(kwargs["表情"])))
+        parts.append(wrap(extract(kwargs["面饰"])))
 
         # ==========================================
         # 5. 服装
         # ==========================================
-        material_tag = kwargs["20_服装材质"]
-        parts.append(wrap(extract(kwargs["28_颈饰"])))
+        material_tag = kwargs["服装材质"]
+        parts.append(wrap(extract(kwargs["颈饰"])))
 
-        suit = combine(kwargs["15_套装颜色"], kwargs["14_套装选择"], material_tag)
+        suit = combine(kwargs["套装颜色"], kwargs["套装选择"], material_tag)
         is_suit_nude = (suit == "nude")
 
         if is_suit_nude:
@@ -354,8 +354,8 @@ class QianhuiCharacterCreator:
         elif suit:
             parts.append(suit)
         else:
-            top = combine(kwargs["17_上装颜色"], kwargs["16_上装款式"], material_tag)
-            bottom = combine(kwargs["19_下装颜色"], kwargs["18_下装款式"], material_tag)
+            top = combine(kwargs["上装颜色"], kwargs["上装款式"], material_tag)
+            bottom = combine(kwargs["下装颜色"], kwargs["下装款式"], material_tag)
 
             if top:
                 parts.append(top)
@@ -363,24 +363,24 @@ class QianhuiCharacterCreator:
                 parts.append(bottom)
             # 已删除：默认模式下的 (wearing clothes:1.1) 逻辑
 
-        parts.append(wrap(extract(kwargs["29_手部饰品"])))
+        parts.append(wrap(extract(kwargs["手部饰品"])))
 
         # ==========================================
         # 6. 腿脚饰品
         # ==========================================
-        parts.append(wrap(extract(kwargs["21_腿部特征"])))
-        parts.append(combine(kwargs["23_袜饰颜色"], kwargs["22_袜饰"]))
-        parts.append(combine(kwargs["25_鞋子颜色"], kwargs["24_鞋子"]))
-        parts.append(wrap(extract(kwargs["30_特殊饰品"])))
+        parts.append(wrap(extract(kwargs["腿部特征"])))
+        parts.append(combine(kwargs["袜饰颜色"], kwargs["袜饰"]))
+        parts.append(combine(kwargs["鞋子颜色"], kwargs["鞋子"]))
+        parts.append(wrap(extract(kwargs["特殊饰品"])))
 
         # ==========================================
         # 7. 构图与补充
         # ==========================================
-        shot_tag = extract(kwargs["31_构图范围"])
+        shot_tag = extract(kwargs["构图范围"])
         if shot_tag:
             parts.append(f"({shot_tag}:1.1)")
 
-        manual = kwargs.get("33_手动补充", "").strip()
+        manual = kwargs.get("手动补充", "").strip()
         if manual:
             parts.append(manual)
 
