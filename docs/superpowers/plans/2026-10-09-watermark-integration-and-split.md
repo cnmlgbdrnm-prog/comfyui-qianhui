@@ -1047,7 +1047,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Create: `nodes/qianhui_latent_yolo/mixins/pipeline/__init__.py`、`prepare.py`、`detect.py`、`repair.py`、`global_pass.py`、`report.py`
 - Modify: `nodes/qianhui_latent_yolo/node.py`（`process` 瘦身为阶段编排）
 
-> `process` 在源文件中是 `def@4131`、`end@5606`，**共 1476 行，无装饰器**。四个阶段文件切完后，`node.py` 里只剩 `def process(...)` 的签名 + 依次调用 `prepare_run/run_detection/run_repair/run_global_pass/build_report`。
+> `process` 在源文件中是 `def@4131`、`end@5606`，**共 1476 行，无装饰器**。阶段文件切完后，`node.py` 里只剩下 `def process(...)` 的签名 + 那段 `try:` / `for i in range(ctx.batch_size):` / `except` 骨架 —— 循环体里依次调用 `run_detection`/`run_repair`/`run_global_pass`，循环外用 `prepare_run` 起手、`build_report` 收尾，`except` 里调 `finalize_interrupt`。**循环必须留在 `process`**，理由见步骤 4 的说明块。
 
 **Interfaces:**
 - Consumes: `QianhuiLatentYOLO` 的 6 个 Mixin（Task 3）
@@ -1057,7 +1057,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
   - `pipeline/detect.py`：`run_detection(node, ctx) -> None`（就地写 `ctx`）
   - `pipeline/repair.py`：`run_repair(node, ctx) -> None`
   - `pipeline/global_pass.py`：`run_global_pass(node, ctx) -> None`
-  - `pipeline/report.py`：`build_report(node, ctx) -> tuple`（返回 `({"samples": ...}, preview, masks, info)`）
+  - `pipeline/report.py`：`finalize_interrupt(node, ctx) -> None`（`except` 体）、`build_report(node, ctx) -> tuple`（返回 `({"samples": ...}, preview, masks, info)`）
 
 - [ ] **步骤 1：用扫描确定跨阶段变量集（不靠推断）**
 
@@ -1257,13 +1257,32 @@ Expected: 打印约 99 行字段声明。把输出**逐行粘贴**到 `YoloConfi
 
 | 文件 | 源行 | 搬入内容 |
 |---|---|---|
-| `pipeline/prepare.py` | 4131-4386 | 99 个 `kwargs.get` → `YoloConfig` 字段；规则预设处理；模型列表解析；缓存设备决策；`ksampler` 准备 |
-| `pipeline/detect.py` | 4387-4862 | 逐帧主循环前半：预处理 → 全图预降噪 → VAE 解码 → YOLO 检测 → 检测后处理 → 二次检测精修 → SAM 精修 → 中间变量清理 |
+| `pipeline/prepare.py` | 4131-4385 | 循环前的**全部顶层语句**：99 个 `kwargs.get` → `YoloConfig` 字段；规则预设处理；模型列表解析；缓存设备决策；`ksampler` 准备 |
+| `pipeline/detect.py` | 4388-4863 | 逐帧主循环前半：预处理 → 全图预降噪 → VAE 解码 → YOLO 检测 → 检测后处理 → 二次检测精修 → SAM 精修 → 中间变量清理 |
 | `pipeline/repair.py` | 4864-5406 | `3) 区域精修`：逐目标裁剪 → 条件编码 → 局部重绘 → ControlNet → 融合贴回 |
-| `pipeline/global_pass.py` | 5407-5481 | `4) 修复后全图降噪` + 视频模式时序平滑 + 帧历史维护 |
-| `pipeline/report.py` | 5483-5607 | 预览图解码、遮罩汇总、`检测信息` 组装、性能统计、最终 return |
+| `pipeline/global_pass.py` | 5407-5500 | `4) 修复后全图降噪` + 视频模式时序平滑 + 帧历史维护 + **逐帧输出累积**（`out_latents[i:i+1]`、`out_previews.append`、`out_masks.append`、`all_dets.extend`、`processed_count` 递增、`del` 与 `_gc_if_needed`） |
+| `pipeline/report.py` | 5502-5606 | `finalize_interrupt`（`except` 体 5503-5528）+ `build_report`（5530-5606：`out_latents is None` 兜底、预览图解码、遮罩汇总、`检测信息` 组装、性能统计、最终 return） |
+| `node.py::process` | 4386-4387、5502 | `try:` / `for i in range(ctx.batch_size):` / `except InterruptProcessingException:` 这段**骨架** |
+
+> ⚠️ **上面这张表必须按源码的真实结构读，不能当成 5 个顺序块。** 源里 `try:` 在 4386、
+> `for i in range(batch_size):` 在 4387、循环体一直到 **5500**，`except` 在 5502。
+> 也就是说 `detect`/`repair`/`global` 三段**与「逐帧输出累积」同在一个循环体内**，
+> 每帧按 detect → repair → global 交错执行；而 `build_report` 只被调用**一次**。
+> 因此：
+>
+> - **循环与 `try` 必须留在 `process` 里**。把循环放进任何一个阶段函数，其余三个就只能被它调用，
+>   与「`process` 依次调用阶段函数」的接口直接冲突。
+> - **逐帧累积只能落在 `run_global_pass` 末尾**（它是循环体最后一段），不可能放进一次调用的 `build_report`。
+> - **`except` 体（5503-5528，24 行）要单独成函数** `finalize_interrupt(node, ctx)`，否则 `process` 超出步骤 6 的 ≤15 行门。
+>
+> 本表早期版本把 `report.py` 写成 5483-5607、把 `detect` 写成从 4387 起 —— 那样 `report` 的区间里
+> 既有循环体内代码（5483-5500）又有 `except` 体（5502-5528），且 4386 的 `try:` 会被当成 prepare 的
+> 最后一行，**结构上都不可能成立**。已按上表订正。（与步骤 1 的 `PHASES` 相比本表在 prepare/detect
+> 边界上差 1 行：`PHASES` 把 4386 的 `try:` 归给 detect。该行只有 `try:` 不带任何 `Name` 节点，
+> 对 `ast.walk` 归类**无影响**，故步骤 1 的 `220`/`147` 两个数字仍然有效。）
 
 搬运规则：阶段函数内的局部变量若在步骤 1 的跨阶段清单里，改为 `ctx.<名字>`；其余保持为普通局部变量。
+配置项（`YoloConfig` 的 99 个）在阶段函数里写 `ctx.cfg.<名字>`，在 `parse_config` 内部写局部 `cfg.<名字>`。
 
 - [ ] **步骤 5：`node.py` 的 `process` 瘦身为编排**
 
@@ -1272,12 +1291,32 @@ Expected: 打印约 99 行字段声明。把输出**逐行粘贴**到 `YoloConfi
                 CFG, 采样器, 调度器, 降噪, 放大算法, 放大倍数, **kwargs):
         ctx = prepare_run(self, kwargs, Latent=Latent, VAE=VAE,
                           正面提示=正面提示, 负面提示=负面提示, seed=seed,
+                          模型=模型, 步数=步数, CFG=CFG, 采样器=采样器,
+                          调度器=调度器, 降噪=降噪,
                           放大算法=放大算法, 放大倍数=放大倍数)
-        run_detection(self, ctx)
-        run_repair(self, ctx)
-        run_global_pass(self, ctx)
+        try:
+            for i in range(ctx.batch_size):
+                ctx.i = i
+                run_detection(self, ctx)
+                run_repair(self, ctx)
+                run_global_pass(self, ctx)
+        except InterruptProcessingException:
+            finalize_interrupt(self, ctx)
         return build_report(self, ctx)
 ```
+
+> ⚠️ **`prepare_run` 的实参一个都不能少。** `模型`/`步数`/`CFG`/`采样器`/`调度器`/`降噪` 是
+> `process` 的**具名形参**、不在 `**kwargs` 里，却被 detect/repair/global 用到
+> （源里如 `ksampler.sample(模型, seed + i, 步数, CFG, 采样器, 调度器, ...)`）。
+> 阶段函数只收 `(node, ctx)`，除经 `ctx` 别无通道 —— 漏传就是运行期 `AttributeError`。
+> 加上 `Latent`/`VAE`/`正面提示`/`负面提示`/`seed`/`放大算法`/`放大倍数`，共 13 个形参；
+> `Latent` 只被 `parse_config`/`prepare_run` 用，留作形参、不入 `ctx`。
+>
+> `try`/`for`/`except` 与 `finalize_interrupt` 的理由见步骤 4 的说明块（四个阶段同在一个循环体内）。
+> 本片段共 15 行，正好卡住步骤 6 的 ≤15 门。
+> `node.py` 顶部需要 `from .mixins.pipeline.report import build_report, finalize_interrupt`
+> 与 `InterruptProcessingException`（源 581-584 的 `try: from comfy.model_management import ...`
+> 兼容块，在 Task 3 已随其余导入一并搬入）。
 
 - [ ] **步骤 6：静态健全性检查**
 
