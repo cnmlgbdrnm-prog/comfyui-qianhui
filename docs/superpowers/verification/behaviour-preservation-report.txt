@@ -12,7 +12,7 @@
 §1 函数计数（口径：def + async def + lambda，含嵌套）
 ------------------------------------------------------------------------------
 源   ：def 93 + lambda 12 = 105
-新包 ：def 100 + lambda 12 = 112
+新包 ：def 101 + lambda 12 = 113
 
 ------------------------------------------------------------------------------
 §2 函数级：按名配对 + 三种获批改写后逐字节比对
@@ -40,7 +40,7 @@
 
 新包侧新增 docstring 的配对 0 对（第 3 种获批改写，两侧都已剥掉再比）：
 
-新包侧未配对 9 个（拆分新增 / 改名 / 新功能的产物）：
+新包侧未配对 10 个（拆分新增 / 改名 / 新功能的产物）：
   + run_detection        nodes\qianhui_latent_yolo\mixins\pipeline\detect.py @11
   + run_global_pass      nodes\qianhui_latent_yolo\mixins\pipeline\global_pass.py @7
   + parse_config         nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @11
@@ -48,6 +48,7 @@
   + run_repair           nodes\qianhui_latent_yolo\mixins\pipeline\repair.py @11
   + finalize_interrupt   nodes\qianhui_latent_yolo\mixins\pipeline\report.py @11
   + build_report         nodes\qianhui_latent_yolo\mixins\pipeline\report.py @41
+  + iter_frames_in_order nodes\qianhui_latent_yolo\payload.py @60
   + apply_preset         nodes\qianhui_latent_yolo\presets.py @93
   + as_payload           nodes\qianhui_latent_yolo\presets.py @115
 
@@ -113,7 +114,7 @@
 ------------------------------------------------------------------------------
   复审所报                                | 本次实算
   源函数 105                              | 105   一致
-  新包函数 112                            | 112   一致
+  新包函数 112                            | 113   **不一致**
   源函数缺失 0                            | 按名缺失 0（按同名条目落空 2）
   按名配对 112 → 逐字节相同 109，不同 3   | 配对 103 → 相同 100，不同 3
   process() 叶子语句 902 → 命中 901       | 叶子 674 → 命中 672
