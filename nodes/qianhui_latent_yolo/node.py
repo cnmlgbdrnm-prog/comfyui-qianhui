@@ -7,7 +7,7 @@ Detection → Sam → Geometry → Masks → Policy → Inpaint → LatentKSampl
 import comfy.samplers
 
 from .model_managers import YOLOModelManager, SAMModelManager
-from .model_cache import YOLOModelCache
+from .model_cache import get_shared_cache
 from .base_node import LatentKSamplerUpscaler
 from .mixins.detection import DetectionMixin
 from .mixins.sam import SamMixin
@@ -227,7 +227,7 @@ class QianhuiLatentYOLO(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
     def __init__(self):
         super().__init__()
         # V6.10.5: 使用智能多模型缓存管理器（自动适配显存大小）
-        self.yolo_cache = YOLOModelCache(max_cached_models=3, vram_threshold_mb=500)
+        self.yolo_cache = get_shared_cache()
         # 兼容旧代码
         self.yolo_model = None
         self.yolo_model_path = None

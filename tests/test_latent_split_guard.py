@@ -18,6 +18,7 @@ import ast
 import io
 import os
 import sys
+import types
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -151,9 +152,10 @@ class TestSlots(unittest.TestCase):
 
 PIPELINE_DIR = os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "pipeline")
 STAGE_MODULES = ("prepare.py", "detect.py", "repair.py",
-                 "global_pass.py", "report.py", "report_bits.py")
+                 "global_pass.py", "report.py", "report_bits.py",
+                 "sam_refine.py")
 
-# 6 个冻结计数 (reads, writes)。
+# 7 个冻结计数 (reads, writes)。
 #
 # ★ 口径：数的是**去重后的字段名个数**（`{字段名}` 的 len），**不是** AST 访问点个数。
 #   两者的差别很大 —— 例如 repair.py 磁盘上有 114 处 cfg 读取，但只有 48 个不同的字段名。
@@ -167,7 +169,14 @@ STAGE_MODULES = ("prepare.py", "detect.py", "repair.py",
 #   T13 删 prepare_run —— 每次都要有理由，不是无脑改数字。
 EXPECTED_CFG_ACCESS = {
     "prepare.py": (48, 99),  # (reads, writes)
-    "detect.py": (37, 0),
+    # T4：SAM 精修块整段搬进了 sam_refine.py，带走了块内**仅有**的两个 cfg 读取
+    # （enable_sam 在 :367 的 if 条件里、sam_conf_threshold 在 :408 的调用里；
+    # 机检确认这两个字段在 detect.py 的 SAM 块**之外**一处都没读）。整条管道的
+    # 读取一个没少、只是换了文件 —— 非行为性迁移，在此同步期望值。
+    "detect.py": (35, 0),
+    # T4 新增：不登记的话新文件完全没守卫看着（它手里有那 2 个 cfg 读取）。
+    # （并集仍覆盖全部 99 个字段，故用例 2/3 不受影响，只有本条需要更新。）
+    "sam_refine.py": (2, 0),
     "repair.py": (48, 0),
     "global_pass.py": (7, 0),
     # T3：6 个 cfg 读取（work_mode / blend_mode / use_latent_aware / enable_yolo /
@@ -404,7 +413,7 @@ class TestCfgReadClosure(unittest.TestCase):
         )
 
     def test_every_read_field_is_a_declared_config_field(self):
-        """6 个阶段读到的字段都必须真在 YoloConfig 里 —— 这是**拼写错**的网。
+        """7 个阶段读到的字段都必须真在 YoloConfig 里 —— 这是**拼写错**的网。
 
         `ctx.cfg.confidnce` 这类错字在带 `slots=True` 的类上会在运行期抛
         AttributeError，但只在该分支被走到时才炸；静态这里当场红。
@@ -528,7 +537,7 @@ class TestCfgReadClosure(unittest.TestCase):
         )
 
     def test_cfg_access_counts_are_frozen(self):
-        """★ 反空转的网：6 个计数写死，阶段模块被改名/搬走时「读到 0 个」当场红。
+        """★ 反空转的网：7 个计数写死，阶段模块被改名/搬走时「读到 0 个」当场红。
 
         用例 2/3 是「并集 ⊆ 字段」/「字段 ⊆ 并集」的单向包含断言：某个阶段模块
         一旦解析不到（改名、搬走），并集变小，它们会**空转通过**。这条把每个
@@ -549,6 +558,194 @@ class TestCfgReadClosure(unittest.TestCase):
             "  1) 先确认是真改了读取逻辑，而不是模块被改名/搬走、或解析失手；\n"
             "  2) 在**同一个提交**里说明为什么，并同步更新 EXPECTED_CFG_ACCESS。",
         )
+
+
+# ==================== 4 个节点共享的模型缓存单例（T5） ====================
+#
+# 这条护的是计划里的「静默失效 a」：拆成 4 个节点后若各持一份 YOLOModelCache，
+# pipeline 里的代码（repair.py / sam_refine.py）会伸手进 `node.yolo_cache` 去卸模型
+# 整理显存，而 load_model 发生在 detect.py —— 于是修复节点卸的是**自己那个空缓存**，
+# 检测节点加载的模型再没人卸。**不报错、不崩，只是显存一直涨。**
+#
+# 为什么不 import 整个包：`model_cache.py` 模块级只 `import gc / os / torch /
+# comfy.model_management`（ultralytics 等都在函数体内懒导入），且导入期**不调用**
+# comfy 的任何东西，所以一个空壳桩就够 —— 与 test_import_smoke.py 同一套路，
+# 且同样只回收**自己注入**的那两个名字，不动装载前就在 sys.modules 里的东西。
+_STUB_MODULES = ("comfy", "comfy.model_management")
+_STUB_SNAPSHOT = None
+model_cache = None
+
+
+def setUpModule():
+    """注入最小的 comfy 桩，再按路径装载 model_cache（它没有包内相对导入）。"""
+    global _STUB_SNAPSHOT, model_cache
+    _STUB_SNAPSHOT = set(sys.modules)
+    comfy_stub = sys.modules.get("comfy")
+    if comfy_stub is None:
+        comfy_stub = types.ModuleType("comfy")
+        sys.modules["comfy"] = comfy_stub
+    if "comfy.model_management" not in sys.modules:
+        mm_stub = types.ModuleType("comfy.model_management")
+        sys.modules["comfy.model_management"] = mm_stub
+        comfy_stub.model_management = mm_stub
+    model_cache = load_module(
+        "qh_model_cache",
+        os.path.join(pkgs_dir("qianhui_latent_yolo"), "model_cache.py"),
+    )
+
+
+def tearDownModule():
+    """只回收本模块注入的名字，别动装载前就在 sys.modules 里的东西。"""
+    if _STUB_SNAPSHOT is None:
+        return
+    for name in _STUB_MODULES:
+        if name not in _STUB_SNAPSHOT:
+            sys.modules.pop(name, None)
+
+
+class TestSharedModelCache(unittest.TestCase):
+    """T5：4 个拆分节点必须共用同一个 YOLOModelCache 实例。"""
+
+    def test_get_shared_cache_returns_the_same_object(self):
+        """`get_shared_cache()` 恒返回同一个对象 —— 这是「显存不再一直涨」的全部依据。
+
+        若缓存被去掉、每次都 `YOLOModelCache(...)` 新建，`assertIs` 当场红
+        （那条变异及对照组见 task-5 报告）。
+
+        ★ 本条护的是**单例本身**；「node.py 是否真的改用了它」不在射程内 ——
+        `node.py` 若被改回自己 new 一个，本条仍绿。那个方向由 T8~T11 的 4 个节点
+        各自接线时暴露，见 task-5 报告的 concern。
+        """
+        first = model_cache.get_shared_cache()
+        self.assertIs(
+            first, model_cache.get_shared_cache(),
+            "get_shared_cache() 每次返回新对象 —— 4 个节点又各持一份缓存了："
+            "修复节点会去卸自己那个空缓存，检测节点加载的模型再没人卸（显存一直涨）",
+        )
+        self.assertIsInstance(first, model_cache.YOLOModelCache)
+
+
+# ---------------- 节点「真的用了」那个单例（T5，静态） ----------------
+#
+# 上面那条护的是**单例本身**；这里护的是**节点有没有真的用它**。两条缺一不可：
+# `node.py` 若被改回自己 `new` 一个 YOLOModelCache，单例依然存在、上面那条依然绿，
+# 而「静默失效 a」已经复活 —— 修复节点卸的是自己那个空缓存，
+# 检测节点加载的模型再没人卸（不报错、不崩，只是显存一直涨）。
+#
+# ★ 只做**静态** AST 解析、**不 import** 目标模块：`node.py` `import comfy.samplers`，
+#   需要 ComfyUI 运行时（那一格由 test_import_smoke.py 的桩负责，各司其职）。
+
+NODE_PY = os.path.join(pkgs_dir("qianhui_latent_yolo"), "node.py")
+
+_SHARED_CACHE_SINGLETON = "get_shared_cache"
+_CACHE_ATTR = "yolo_cache"
+
+
+def _yolo_cache_assignments_in_init(tree, class_name, attr):
+    """<class_name>.__init__ 里所有 `self.<attr> = ...` → [(行号, 右侧 unparse)]。
+
+    找不到类或 `__init__` 时返回 None（与「找到了但没有赋值」的 [] 区分开）。
+    """
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.ClassDef) and node.name == class_name):
+            continue
+        for sub in node.body:
+            if not (isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and sub.name == "__init__"):
+                continue
+            out = []
+            for st in ast.walk(sub):
+                if isinstance(st, ast.Assign):
+                    targets, value = st.targets, st.value
+                elif isinstance(st, ast.AnnAssign):
+                    targets, value = [st.target], st.value
+                else:
+                    continue
+                if value is None:
+                    continue
+                for t in targets:
+                    if (isinstance(t, ast.Attribute) and t.attr == attr
+                            and isinstance(t.value, ast.Name) and t.value.id == "self"):
+                        out.append((st.lineno, ast.unparse(value)))
+            out.sort()
+            return out
+    return None
+
+
+def _direct_cache_constructions(tree, cache_class):
+    """整个模块里 `<cache_class>(...)` 的直接构造点行号（绕过单例的那种）。"""
+    hits = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if isinstance(f, ast.Name) and f.id == cache_class:
+            hits.append(node.lineno)
+        elif isinstance(f, ast.Attribute) and f.attr == cache_class:
+            hits.append(node.lineno)
+    return sorted(hits)
+
+
+def _assert_node_uses_shared_cache(case, path, class_name,
+                                   attr=_CACHE_ATTR,
+                                   singleton=_SHARED_CACHE_SINGLETON,
+                                   cache_class="YOLOModelCache"):
+    """断言 <path> 的 <class_name>.__init__ 通过模块级单例取 `attr`。
+
+    ★ 这是给 **T8~T11 的 4 个节点**准备的：每个节点各调一次即可
+      （换 path / class_name），别写死成只能测单体。
+
+    三条不变量，每条都对应一个具体退化：
+      1. 这类赋值**恰好一处** —— 多一处就可能有人把共享单例覆盖掉；
+      2. 右侧 unparse 恰好是 `get_shared_cache()` —— 防被换回直接构造；
+      3. 整个文件里**没有** `YOLOModelCache(...)` 的直接构造点 ——
+         防绕过单例另起一份缓存（「静默失效 a」的原形）。
+
+    `path` 由调用方给（测试读模块级 NODE_PY），好让变异对照组指向仓外副本。
+    """
+    with io.open(path, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+
+    assigns = _yolo_cache_assignments_in_init(tree, class_name, attr)
+    case.assertIsNotNone(
+        assigns,
+        "%s 里找不到 %s.__init__（或它没有 self.%s = ... 赋值）"
+        % (path, class_name, attr),
+    )
+    case.assertEqual(
+        len(assigns), 1,
+        "%s.__init__ 里 self.%s 有 %d 处赋值（应恰好 1 处）：%s\n"
+        "  多一处就可能把共享单例覆盖掉 —— 那和「各持一份缓存」是同一个病。"
+        % (class_name, attr, len(assigns), assigns),
+    )
+    case.assertEqual(
+        assigns[0][1], singleton + "()",
+        "%s.__init__ 的 self.%s 赋的不是 %s()（第 %d 行是 %r）。\n"
+        "  改回 `%s(...)` 会让 4 个节点各持一份缓存 —— 修复节点卸的是自己那个"
+        "**空**缓存，检测节点加载的模型再没人卸：不报错，只是显存一直涨。"
+        % (path, attr, singleton, assigns[0][0], assigns[0][1], cache_class),
+    )
+    direct = _direct_cache_constructions(tree, cache_class)
+    case.assertEqual(
+        direct, [],
+        "%s 里仍有直接构造 %s(...) 的行 %s —— 那会绕过共享单例。"
+        % (path, cache_class, direct),
+    )
+
+
+class TestNodesUseSharedCache(unittest.TestCase):
+    """T5：节点 `__init__` 必须走模块级单例，而不是各 new 一个缓存。
+
+    「单例存在」与「节点用了它」是两件事：`TestSharedModelCache` 护前者（运行时），
+    本类护后者（静态）。只留前者的话，node.py 被改回自己 new 一个也不会有测试红。
+    """
+
+    def test_qianhui_latent_yolo_init_uses_the_shared_cache(self):
+        """★ 绊线：node.py 改回自己 `new` 缓存 / 多赋一处 / 绕过单例，本条都当场红。
+
+        两个变异对照组（改回直接构造、在 `__init__` 末尾再赋一处）见 task-5 报告。
+        """
+        _assert_node_uses_shared_cache(self, NODE_PY, "QianhuiLatentYOLO")
 
 
 if __name__ == "__main__":

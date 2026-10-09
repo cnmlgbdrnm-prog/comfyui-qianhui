@@ -27,7 +27,7 @@
 ## 两套对拍
 
 1. **函数级**：源里每个函数与新版按名配对，施加计划批准的**三种机械改写**后逐字节比对。
-2. **语句级**：源 `process()` 的叶子语句，与新版承接它的那 11 个函数（`PROCESS_SPLIT_TARGETS` 所列），作为**多重集**比对。
+2. **语句级**：源 `process()` 的叶子语句，与新版承接它的那 12 个函数（`PROCESS_SPLIT_TARGETS` 所列），作为**多重集**比对。
 
 ## 术语与判据（写死在此，避免口径漂移）
 
@@ -73,13 +73,15 @@ REPO_ROOT = os.path.abspath(os.path.join(_HERE, os.pardir, os.pardir, os.pardir)
 NEW_PACKAGE = os.path.join(REPO_ROOT, "nodes", "qianhui_latent_yolo")
 REPORT_FILE = os.path.join(_HERE, "behaviour-preservation-report.txt")
 
-#: 源 `process()` 被拆进这 11 个函数。
+#: 源 `process()` 被拆进这 12 个函数。
 #: 前 8 个 = `node.py` 的 `process()` 实际调用的那些函数（读 node.py:239-253 得到），
 #: 不是猜的：prepare_run → run_detection → run_repair → run_global_pass
 #: → (finalize_interrupt | build_report)；parse_config 由 prepare_run 调用。
-#: 后 3 个（T3 新增）= `report_bits.py` 的 build_preview / build_masks / build_info ——
+#: 第 9~11 个（T3 新增）= `report_bits.py` 的 build_preview / build_masks / build_info ——
 #: 它们是从 build_report 里再拆出来的**子段**，`process()` 并不直接调用；但源
 #: `process()` 里对应的语句现在由它们承接，不列进来就会把搬走的语句误判成源侧丢失。
+#: 第 12 个（T4 新增）= `sam_refine.py` 的 refine_with_sam —— 同理，是从
+#: run_detection 里再拆出来的**子段**（SAM 精修块，源 `process()` 里那 104 行）。
 PROCESS_SPLIT_TARGETS = (
     ("node.py", "process"),
     ("mixins/pipeline/prepare.py", "parse_config"),
@@ -92,6 +94,7 @@ PROCESS_SPLIT_TARGETS = (
     ("mixins/pipeline/report_bits.py", "build_preview"),
     ("mixins/pipeline/report_bits.py", "build_masks"),
     ("mixins/pipeline/report_bits.py", "build_info"),
+    ("mixins/pipeline/sam_refine.py", "refine_with_sam"),
 )
 
 #: 三种获批改写。
@@ -104,7 +107,10 @@ _REWRITES = (
 #: 已登记的、有正当理由的函数级差异。多出任何一个都算回归。
 EXPECTED_DIFF_FUNCTIONS = {
     "__init__": "聚合类 QianhuiLatentYOLO.__init__：新基类链用 super().__init__()，"
-                "源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法",
+                "源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法；"
+                "T5 起 yolo_cache 改由模块级单例 get_shared_cache() 提供"
+                "（源是每个节点各 new 一个 YOLOModelCache；单例内部的构造参数与源逐字相同："
+                "max_cached_models=3, vram_threshold_mb=500）",
     "get_sam_dir": "新代码改用 folder_paths 的路径解析，去掉了源里的 os.path 兜底分支",
     "process": "源 1476 行的巨型 process() 被拆成 node.process + 7 个阶段函数（本脚本 §3 逐语句对拍）",
 }

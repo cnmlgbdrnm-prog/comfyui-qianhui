@@ -440,3 +440,20 @@ class YOLOModelCache:
     def set_model_printed(self, model_path, printed=True):
         """设置模型已打印类别信息"""
         self._printed_classes[model_path] = printed
+
+
+#: 4 个拆分节点的**共享**模型缓存。
+#:
+#: 为什么必须是模块级单例而不是每个节点各一个：pipeline 里的代码会伸手进
+#: `node.yolo_cache` 去卸模型 / 整理显存（repair.py、sam_refine.py），
+#: 而 load_model 发生在 detect.py。各持一份的话，修复节点卸的是自己那个**空**缓存，
+#: 检测节点加载的模型再没人卸 —— **不报错，只是显存一直涨**。
+_SHARED_CACHE = None
+
+
+def get_shared_cache():
+    """取 4 个节点共用的 YOLOModelCache（首次调用时创建，之后恒返回同一个对象）。"""
+    global _SHARED_CACHE
+    if _SHARED_CACHE is None:
+        _SHARED_CACHE = YOLOModelCache(max_cached_models=3, vram_threshold_mb=500)
+    return _SHARED_CACHE

@@ -12,7 +12,7 @@
 §1 函数计数（口径：def + async def + lambda，含嵌套）
 ------------------------------------------------------------------------------
 源   ：def 93 + lambda 12 = 105
-新包 ：def 104 + lambda 12 = 116
+新包 ：def 106 + lambda 12 = 118
 
 ------------------------------------------------------------------------------
 §2 函数级：按名配对 + 三种获批改写后逐字节比对
@@ -25,7 +25,7 @@
   * get_sam_dir      源 @633    →  nodes\qianhui_latent_yolo\model_managers.py:116
       新代码改用 folder_paths 的路径解析，去掉了源里的 os.path 兜底分支
   * __init__         源 @1517   →  nodes\qianhui_latent_yolo\node.py:227
-      聚合类 QianhuiLatentYOLO.__init__：新基类链用 super().__init__()，源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法
+      聚合类 QianhuiLatentYOLO.__init__：新基类链用 super().__init__()，源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法；T5 起 yolo_cache 改由模块级单例 get_shared_cache() 提供（源是每个节点各 new 一个 YOLOModelCache；单例内部的构造参数与源逐字相同：max_cached_models=3, vram_threshold_mb=500）
   * process          源 @4131   →  nodes\qianhui_latent_yolo\node.py:239
       源 1476 行的巨型 process() 被拆成 node.process + 7 个阶段函数（本脚本 §3 逐语句对拍）
 
@@ -40,8 +40,8 @@
 
 新包侧新增 docstring 的配对 0 对（第 3 种获批改写，两侧都已剥掉再比）：
 
-新包侧未配对 13 个（拆分新增 / 改名 / 新功能的产物）：
-  + run_detection        nodes\qianhui_latent_yolo\mixins\pipeline\detect.py @11
+新包侧未配对 15 个（拆分新增 / 改名 / 新功能的产物）：
+  + run_detection        nodes\qianhui_latent_yolo\mixins\pipeline\detect.py @12
   + run_global_pass      nodes\qianhui_latent_yolo\mixins\pipeline\global_pass.py @7
   + parse_config         nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @11
   + prepare_run          nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @183
@@ -51,6 +51,8 @@
   + build_preview        nodes\qianhui_latent_yolo\mixins\pipeline\report_bits.py @13
   + build_masks          nodes\qianhui_latent_yolo\mixins\pipeline\report_bits.py @19
   + build_info           nodes\qianhui_latent_yolo\mixins\pipeline\report_bits.py @34
+  + refine_with_sam      nodes\qianhui_latent_yolo\mixins\pipeline\sam_refine.py @12
+  + get_shared_cache     nodes\qianhui_latent_yolo\model_cache.py @454
   + iter_frames_in_order nodes\qianhui_latent_yolo\payload.py @60
   + apply_preset         nodes\qianhui_latent_yolo\presets.py @93
   + as_payload           nodes\qianhui_latent_yolo\presets.py @115
@@ -63,7 +65,7 @@
     所以「改写」不可能在源侧掩盖任何差异。
 
 ------------------------------------------------------------------------------
-§3 语句级：源 process() 的叶子语句 vs 承接它的 11 个函数
+§3 语句级：源 process() 的叶子语句 vs 承接它的 12 个函数
 ------------------------------------------------------------------------------
 源 process()：同名 2 个，取最大者 @line 4131-5606（1476 行）= 主节点
     全部语句 887 条；**叶子语句** 674 条
@@ -71,7 +73,7 @@
     node.py                            process            叶子    7 条
     mixins/pipeline/prepare.py         parse_config       叶子  105 条
     mixins/pipeline/prepare.py         prepare_run        叶子   58 条
-    mixins/pipeline/detect.py          run_detection      叶子  196 条
+    mixins/pipeline/detect.py          run_detection      叶子  151 条
     mixins/pipeline/repair.py          run_repair         叶子  237 条
     mixins/pipeline/global_pass.py     run_global_pass    叶子   40 条
     mixins/pipeline/report.py          finalize_interrupt 叶子   15 条
@@ -79,9 +81,10 @@
     mixins/pipeline/report_bits.py     build_preview      叶子    2 条
     mixins/pipeline/report_bits.py     build_masks        叶子    8 条
     mixins/pipeline/report_bits.py     build_info         叶子   14 条
-    承接口合计 叶子 696 条
+    mixins/pipeline/sam_refine.py      refine_with_sam    叶子   47 条
+    承接口合计 叶子 698 条
 
-多重集比对：源 674 条，新版 696 条，**逐字命中 672 条**（99.7%）
+多重集比对：源 674 条，新版 698 条，**逐字命中 672 条**（99.7%）
 
 源多出 2 条（即「新版没承接的」，**每一条都必须有理由**）：
   x1  print(f'[Latent YOLO智能处理+ControlNet V6.11.2] 批量: {batch_size}')
@@ -89,7 +92,7 @@
   x1  yolo_model = self.yolo_cache.load_model(yolo_models_to_use[0], precision=inference_precision) if hasattr(self, 'yolo_cac
       新侧写作 hasattr(node, 'yolo_cache')：三种获批改写只覆盖 `node.x`，不覆盖以值的形式出现的裸 `node`，故此处对不上（属口径边界，非行为差异）
 
-新版多出 24 条（拆分脚手架 / 新功能 / 获批改写产物）：
+新版多出 26 条（拆分脚手架 / 新功能 / 获批改写产物）：
   x1  NO_PRESET = None
   x1  apply_preset = None
   x1  apply_preset(cfg, kwargs.get('配置预设') or NO_PRESET)
@@ -97,6 +100,7 @@
   x1  cfg = parse_config(kwargs)
   x1  ctx = YoloRunContext(cfg=cfg, 模型=模型, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器, 降噪=降噪, 
   x1  ctx = prepare_run(self, kwargs, Latent=Latent, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 模型=模型, 步数=步数, CFG=CFG, 采样器=采样器,
+  x1  dets = refine_with_sam(node, ctx, dets, decoded_det)
   x1  final_masks = build_masks(ctx)
   x1  final_preview = build_preview(ctx)
   x1  finalize_interrupt(self, ctx)
@@ -107,6 +111,7 @@
   x1  return build_report(self, ctx)
   x1  return cfg
   x1  return ctx
+  x1  return dets
   x1  return final_masks
   x1  return final_preview
   x1  return info
@@ -115,8 +120,8 @@
   x1  run_repair(self, ctx)
   x1  yolo_model = self.yolo_cache.load_model(yolo_models_to_use[0], precision=inference_precision) if hasattr(node, 'yolo_cac
 
-注：新版多出的 24 条里，与「配置预设」后端有关（含 presets 兜底）的 4 条，
-    其余 20 条全是拆分脚手架（把局部变量搬上 ctx/cfg、把巨型 process 切成阶段调用）。
+注：新版多出的 26 条里，与「配置预设」后端有关（含 presets 兜底）的 4 条，
+    其余 22 条全是拆分脚手架（把局部变量搬上 ctx/cfg、把巨型 process 切成阶段调用）。
     另外：`配置预设` 这个**控件本身在源文件里就已存在**
     （源 nodes.py:1372-1373「V6.6 配置预设」），新版只是补上了它的后端 ——
     所以 `INPUT_TYPES` 能逐字节相同，不是漏改。
@@ -126,7 +131,7 @@
 ------------------------------------------------------------------------------
   复审所报                                | 本次实算
   源函数 105                              | 105   一致
-  新包函数 112                            | 116   **不一致**
+  新包函数 112                            | 118   **不一致**
   源函数缺失 0                            | 按名缺失 0（按同名条目落空 2）
   按名配对 112 → 逐字节相同 109，不同 3   | 配对 103 → 相同 100，不同 3
   process() 叶子语句 902 → 命中 901       | 叶子 674 → 命中 672
