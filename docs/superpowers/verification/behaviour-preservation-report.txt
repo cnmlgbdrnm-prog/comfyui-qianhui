@@ -51,7 +51,7 @@
   + apply_preset         nodes\qianhui_latent_yolo\presets.py @93
   + as_payload           nodes\qianhui_latent_yolo\presets.py @115
 
-三种获批改写的命中次数（整个新包 / 整个源文件）：
+三种获批改写的命中次数（两侧**提取出的函数体内**，非整个文件）：
     \bcfg\.        新   382 / 源     0
     \bctx\.        新   661 / 源     0
     \bnode\.       新    57 / 源     0

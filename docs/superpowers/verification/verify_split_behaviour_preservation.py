@@ -347,6 +347,12 @@ def main():
     except Exception:                                       # noqa: BLE001
         pass
 
+    # `_OUT` 是模块级全局，**每次进入 main 都要清空**：
+    # 不清的话第二次 in-process 调用会把整份报告**再追加一遍**
+    # （脚本自己跑是单次，但「可重跑」包括被当模块导入后重复调用——
+    #  复审正是这样复验本脚本的，所以这条不是假想）。
+    del _OUT[:]
+
     emit("=" * 78)
     emit("拆分行为保持 —— 对拍报告（由脚本生成，勿手改）")
     emit("生成：python -X utf8 docs/superpowers/verification/"
@@ -448,9 +454,12 @@ def main():
         emit("  + %-20s %s @%d" % (f.name, f.origin, f.lineno))
     emit("")
 
-    # 改写次数统计走**整个新包 / 整个源文件**，不是只统计配对上的那些：
+    # 改写次数统计走**两侧各自提取出的全部函数**（不限于配对上的那些）：
     # 承接 process() 的 7 个阶段函数本来就是「新包侧未配对」，
     # 只统计配对会把它们身上 100% 的改写漏掉，报出来的数字就没有意义。
+    # ⚠️ 口径边界：`rewrite_counts` 吃的是**函数体**文本，
+    #    函数**之外**的模块级语句不在扫描范围内 —— 所以下面的标签
+    #    必须写「提取出的函数体内」，不能写「整个源文件」。
     rewrite_used, rewrite_in_source = Counter(), Counter()
     for f in new_fns:
         for k, v in rewrite_counts(f.body).items():
@@ -458,7 +467,7 @@ def main():
     for f in src_fns:
         for k, v in rewrite_counts(f.body).items():
             rewrite_in_source[k] += v
-    emit("三种获批改写的命中次数（整个新包 / 整个源文件）：")
+    emit("三种获批改写的命中次数（两侧**提取出的函数体内**，非整个文件）：")
     for k in rewrite_counts(""):
         emit("    %-14s 新 %5d / 源 %5d" % (k, rewrite_used[k], rewrite_in_source[k]))
     emit("    源侧全 0 = 改写方向只有「新 → 源」一种，源文件里根本没有这三种形态，")
@@ -569,10 +578,24 @@ def _flush(exit_code):
     try:
         with io.open(REPORT_FILE, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(payload)
-        print("")
-        print("[报告已写入] %s" % os.path.relpath(REPORT_FILE, REPO_ROOT))
     except Exception as exc:                                # noqa: BLE001
+        # ★ 写报告失败必须**强制非零退出**，不能用上面的 exit_code：
+        #   exit_code 只反映「有没有未登记的差异」。若写入失败（目录只读 /
+        #   磁盘满 / 权限）却退出 0，自动化重跑就分不出「报告已重建」
+        #   和「报告根本没产出」—— 本脚本存在的意义就是产出那份报告，
+        #   产出不了却报成功，正是本项目一路在猎的静默失败形状。
         print("[报告写入失败] %s" % exc)
+        sys.exit(1)
+    # 显示路径的解析**单独一个 try**，不与写入共用：
+    # 两者同源（都从 _HERE 推出）故恒同盘、正常情况下不会抛；
+    # 但一旦并进上面的 try，任何显示层异常都会打「[报告写入失败]」，
+    # 把一次**已经成功**的写入误报成失败。
+    try:
+        shown = os.path.relpath(REPORT_FILE, REPO_ROOT)
+    except ValueError:
+        shown = REPORT_FILE
+    print("")
+    print("[报告已写入] %s" % shown)
     sys.exit(exit_code)
 
 
