@@ -1387,7 +1387,13 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 - [ ] **步骤 1：写失败测试**
 
-在 `tests/test_latent_algorithms.py` 末尾追加：
+在 `tests/test_latent_algorithms.py` 里追加：
+
+> ⚠️ **必须插在 `if __name__ == "__main__":` 那一块之前**，不要插在文件最末行之后。
+> `unittest.main()` 在那一行当场执行，此刻文件末尾的类**还没被定义** ->
+> 直接 `python -X utf8 tests/test_latent_algorithms.py` 跑时新用例**根本不被收集**，
+> 步骤 2 期望的 6 个 error 也就复现不出来（表现为「意外全绿」，很像已经做对了）。
+> 放在 main 块之前，两种跑法都能收集到。
 
 > ⚠️ **必须用真实的 `YoloConfig` 实例，不要手搓假的。**
 > 早期版本的用例写成 `cfg = type("C", (), {})()`，然后 `for k in PRESETS[...]: setattr(cfg, k, None)`
@@ -1659,11 +1665,17 @@ def as_payload() -> dict:
 - [ ] **步骤 4：跑测试，确认通过**
 
 Run: `python -X utf8 tests/test_latent_algorithms.py`
-Expected: `OK`，**18 个用例**全过（原有 **11** + 本次新增 **7**）。
+Expected: `OK`，**19 个用例**全过（原有 **12** + 本次新增 **7**）。
 
 > 早期版本写「原 12 + 预设 5」——两处都不对：`tests/test_latent_algorithms.py` 里原有 **11** 个（不是 12），本次新增的是 **6** 个（不是 5）。17 这个总数碰巧是对的，但拆分写错了，后面加用例时别按错的基数推。
 >
-> **后记**：上面这条「6」后来又被 +1 成 **7** —— 追加了 `test_parse_config_mounts_preset_from_kwargs_not_cfg`（预设**选择路径**的守卫，见步骤 1 末尾）。故现在是 **11 + 7 = 18**，全量 **61 + 7 = 68**。
+> **后记**：上面这条「6」后来又被 +1 成 **7** —— 追加了 `test_parse_config_mounts_preset_from_kwargs_not_cfg`（预设**选择路径**的守卫，见步骤 1 末尾）。
+>
+> **再后记（控制者订正，实现者实测发现）**：上面「原有 11 / 基数 61」是**过期的**。
+> 那个 11 是 Task 3 落地时的数；Task 4 随后往同一个文件追加了
+> `TestPackageRelativeImports.test_relative_import_targets_exist`（+1），
+> 所以**本任务开工时**该文件已是 **12**、全量已是 **62**。故正确总数是
+> **12 + 7 = 19**、全量 **62 + 7 = 69**（实测确认）。
 
 - [ ] **步骤 5：在 `parse_config` 末尾接上预设**
 
@@ -1835,7 +1847,7 @@ API 路径：用 `[不使用预设]` 存一份工作流，改为 `快速模式(�
 - [ ] **步骤 11：跑全部单测 + 提交**
 
 Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
-Expected: `OK`，**68 个用例**（实测基数：本任务开工前 61 + 本次新增 7）。
+Expected: `OK`，**69 个用例**（实测基数：本任务开工前 **62** + 本次新增 7）。
 
 > 早期版本写「不少于 55」，是拍出来的数。`discover` 会跑整个 `tests/`，按实测写，别按算式推。
 
