@@ -21,6 +21,7 @@ Context 里都没有家**，那个节点就会在运行期 `AttributeError`；`s
 所以这里把「字段归属」用 AST 与阶段模块的真实读取双向闭合起来。
 """
 import ast
+import re
 import io
 import os
 import sys
@@ -157,9 +158,27 @@ class TestSlots(unittest.TestCase):
 #   各阶段模块的才是「读」。不区分的话两个方向会算成一个。
 
 PIPELINE_DIR = os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "pipeline")
+
+#: 4 个拆出来的节点文件。T13 删掉 prepare_run 之后，**一批 cfg 读取与那唯一一处
+#: cfg 写（`ctx.cfg.enable_yolo = False`）搬到了它们身上** —— 不把它们算进来，
+#: 不变量 2 会**空转**（并集看着闭合、其实少了 4 个文件的读取），而空转比变红更坏。
+NODE_MODULES = ("node_detect.py", "node_sam.py", "node_repair.py", "node_global.py")
+
+
+def _mod_path(name):
+    """模块文件名 → 磁盘路径。
+
+    pipeline 阶段模块住在 `mixins/pipeline/`，4 个 `node_*.py` 住在包根 ——
+    两处来源放同一个网里，所以路径解析收成一个函数，别在调用点各写一遍。
+    """
+    if name in NODE_MODULES:
+        return os.path.join(pkgs_dir("qianhui_latent_yolo"), name)
+    return os.path.join(PIPELINE_DIR, name)
+
+
 STAGE_MODULES = ("prepare.py", "detect.py", "repair.py",
-                 "global_pass.py", "report.py", "report_bits.py",
-                 "sam_refine.py")
+                 "global_pass.py", "report_bits.py",
+                 "sam_refine.py") + NODE_MODULES
 
 # 7 个冻结计数 (reads, writes)。
 #
@@ -187,22 +206,38 @@ EXPECTED_CFG_ACCESS = {
     "global_pass.py": (7, 0),
     # T3：6 个 cfg 读取（work_mode / blend_mode / use_latent_aware / enable_yolo /
     # enable_crop / enable_profiling）随「预览 / 遮罩 / 检测信息」三段搬进了
-    # report_bits.py，故 report.py 只剩 finalize_interrupt 里的 use_latent_aware。
-    # 整条管道的读取一个没少、只是换了文件 —— 非行为性迁移，在此同步期望值。
-    "report.py": (1, 0),
-    # T3 新增：不登记的话新文件完全没守卫看着。
-    # （并集仍覆盖全部字段，故用例 2/3 不受影响，只有本条需要更新。）
+    # report_bits.py。整条管道的读取一个没少、只是换了文件。
     "report_bits.py": (6, 0),
+    # ==================== T13：4 个节点各自的那份读取 ====================
+    #
+    # 删掉 prepare_run 之后，它原来读的那批 cfg 分散到了 4 个 node_*.py ——
+    # 这 4 条**必须**登记：不登记的话「并集覆盖全部字段」那两条断言会因为
+    # 少了这 4 个文件的读取而**空转通过**（看着是绿的，其实网漏了）。
+    # 数字是机检的**去重字段数**（不是 AST 访问点个数），口径与上面一致。
+    "node_detect.py": (27, 2),   # 写：class_rules_text（规则预设展开）、enable_yolo（路径无效时禁用）
+    "node_sam.py": (4, 0),
+    "node_repair.py": (18, 1),   # 写：class_rules_text
+    "node_global.py": (17, 4),   # 写：blend_mode / enable_crop / enable_yolo / use_latent_aware（stage_flags 回填）
 }
+# ★ 上一版里的 `report.py` 两条（`(1, 0)`）在 T13 被删掉了：
+#   它的 `finalize_interrupt` 整段搬进了 node_detect.py 的 `_finalize_interrupt`，
+#   那唯一一处 `use_latent_aware` 读取随之过去（机检确认 node_detect.py 里有它），
+#   所以**整条管道的读取集合一个字段都没少**。删条目不是放宽 —— 是那个文件没了。
 
-# 有控件、但没有对应 YoloConfig 字段的 14 个名字（13 个必填 socket/参数 + 配置预设）。
+# 有控件、但没有对应 YoloConfig 字段的 15 个名字（14 个必填 socket/参数 + 配置预设）。
 # ★ 这是**故意的绊线**：以后新增控件时，要么给它一个 YoloConfig 字段 +
 #   `# 键:` 注释，要么**显式**把这个名字加进本常量 —— 两个都不做，用例 6 就红。
 # 注意 步数 / CFG / 降噪 出现在这里是**对的**：它们被 repair.py 当函数参数用
 # （未检测时回退），不是 YoloConfig 字段，所以没有 `# 键:` 注释。
+#
+# ★ T13 从 14 → 15：多出来的是 `检测数据`（节点间的自定义 socket，类型
+#   `QIANHUI_DETECT`）。它**本来就不该有 YoloConfig 字段** —— 它不是旋钮，
+#   是 4 个节点之间传的逐帧记录；旧单体里它不存在（单体一个节点干完全部活），
+#   所以这一条是拆分本身带来的、按 (b) 显式登记。
+#   判据没变：这张表 = 「4 个节点控件表里、没有 cfg 字段的那些」的精确集合。
 WIDGETS_WITHOUT_CONFIG_FIELD = frozenset((
     "Latent", "VAE", "模型", "正面提示", "负面提示", "seed", "步数", "CFG",
-    "降噪", "采样器", "调度器", "放大倍数", "放大算法", "配置预设",
+    "降噪", "采样器", "调度器", "放大倍数", "放大算法", "配置预设", "检测数据",
 ))
 
 # 99 条「字段 ↔ 控件」配对快照，从 _context_key_map() 的当前输出生成（按字段名排序）。
@@ -375,9 +410,7 @@ def _yolo_config_fields():
 
 def _stage_cfg_access():
     """{模块文件名: (reads, writes)}，键就用 STAGE_MODULES 里那几个名字。"""
-    return {
-        name: _cfg_access(os.path.join(PIPELINE_DIR, name)) for name in STAGE_MODULES
-    }
+    return {name: _cfg_access(_mod_path(name)) for name in STAGE_MODULES}
 
 
 class TestCfgReadClosure(unittest.TestCase):
@@ -408,7 +441,15 @@ class TestCfgReadClosure(unittest.TestCase):
         同时钉住两个方向：解析器漏接一个字段（字段多出来），
         以及写了一个不存在的字段（拼写错）。
         """
-        _, writes = _cfg_access(os.path.join(PIPELINE_DIR, "prepare.py"))
+        # ★ T13 起「写方」不止 parse_config：那唯一一处 cfg 写
+        #   （YOLO 路径无效时 `ctx.cfg.enable_yolo = False`）在 prepare_run 里，
+        #   而 prepare_run 已删、该行随之外移进 node_detect.py。
+        #   只盯 prepare.py 会变成「98 vs 99」的假红；放宽成并集后这条断言守的
+        #   东西没变：每个字段都有人写，且写了的都得是真字段。
+        writes = set()
+        for _name in ("prepare.py",) + NODE_MODULES:
+            _, _w = _cfg_access(_mod_path(_name))
+            writes |= _w
         fields = _yolo_config_fields()
         self.assertEqual(
             writes,
@@ -520,12 +561,16 @@ class TestCfgReadClosure(unittest.TestCase):
         )
 
     def test_widgets_without_a_config_field_are_exactly_the_known_set(self):
-        """★ 故意的绊线：没有 cfg 字段的控件**精确等于**那 14 个已知名字。
+        """★ 故意的绊线：没有 cfg 字段的控件**精确等于**那 15 个已知名字。
 
         以后新增控件时二选一：要么给它一个 YoloConfig 字段 + `# 键:` 注释，
         要么**显式**把这名字加进 WIDGETS_WITHOUT_CONFIG_FIELD 常量；
-        两个都不做，这条就红。拆成 4 个节点后，本用例由每节点各自的
-        socket/控件表接替（T8~T11）。
+        两个都不做，这条就红。
+
+        ★ T13：参照物从单体 `node.py` 换成 **4 个节点的并集**（14 → 15 个名字，
+          多的是 `检测数据` 那个节点间 socket —— 理由写在常量的注释里）。
+          这条的**语义**没变：它仍然是「有哪些控件不该有 cfg 字段」的唯一清单，
+          仍然是「新控件必须二选一」的那道闸门。
         """
         widgets = set(_latent_node_widget_decls())
         mapped = set(_context_key_map().values())
@@ -775,7 +820,9 @@ class TestNodesUseSharedCache(unittest.TestCase):
 CONTEXT_SOURCES = {
     "DetectCtx": (
         ("detect.py", None),
-        ("report.py", "finalize_interrupt"),
+        # T13：report.py 没了，`finalize_interrupt` 整段搬进 node_detect.py 的
+        # `_finalize_interrupt`（逐字搬），故来源换成它 —— 实测并集仍是 50、差集 []。
+        ("node_detect.py", "_finalize_interrupt"),
         ("report_bits.py", "build_preview"),
     ),
     "SamCtx": (("sam_refine.py", None),),
@@ -806,6 +853,68 @@ EXPECTED_CTX_FIELD_COUNTS = {
     "GlobalCtx": 27,
 }
 EXPECTED_CTX_UNION = 50
+
+# ★★ T13 交接（T6 在下面那条用例的 docstring 里就预告过）：
+#   `YoloRunContext` 是「4 个精简 Context 切自哪块原件」的参照物。单体退役时它被删，
+#   参照物就没了 —— 所以这里把它**冻成一张表**（从活的类机检出来的
+#   {字段名: (注解 dump, 默认值 dump)}，50 条）。
+#   这就是那条用例的 docstring 说的「同 CONTEXT_KEY_SNAPSHOT 的做法」，
+#   **不是**把这道网丢掉：它护的是「切出来的每一片是不是和原件逐字一样」。
+#   ★ 只对**同名字段**生效（与原参照物同口径）：某个 Context 独有的字段不在此表约束内。
+#   ★ 它证明的是「与原件的这份拷贝一致」，不是「默认值在语义上正确」—— 与原用例同。
+# YoloRunContext 的冻结快照（50 个字段），按字段名排序。
+YOLO_RUN_CONTEXT_FIELD_SNAPSHOT = {
+    'CFG': ('float', '8.0'),
+    'VAE': ('Any', 'None'),
+    '_decoded_np': ('Any', 'None'),
+    'all_dets': ('List[Any]', 'field(default_factory=list)'),
+    'base_latent': ('Any', 'None'),
+    'base_neg': ('Any', 'None'),
+    'base_pos': ('Any', 'None'),
+    'batch_size': ('int', '0'),
+    'cfg': ('YoloConfig', None),
+    'class_rules': ('Any', 'None'),
+    'detection_mask': ('Any', 'None'),
+    'detections': ('List[Any]', 'field(default_factory=list)'),
+    'frame_history': ('Any', 'None'),
+    'has_cn': ('bool', 'False'),
+    'has_hand_skeleton_cn': ('bool', 'False'),
+    'i': ('int', '0'),
+    'interrupted': ('bool', 'False'),
+    'ksampler': ('Any', 'None'),
+    'latent_for_detection': ('Any', 'None'),
+    'latent_h': ('int', '0'),
+    'latent_w': ('int', '0'),
+    'neg_full': ('Any', 'None'),
+    'original_samples': ('Any', 'None'),
+    'out_device': ('Any', 'None'),
+    'out_latents': ('Any', 'None'),
+    'out_masks': ('List[torch.Tensor]', 'field(default_factory=list)'),
+    'out_previews': ('List[torch.Tensor]', 'field(default_factory=list)'),
+    'pbar': ('Any', 'None'),
+    'perf_start_time': ('Any', 'None'),
+    'pixel_h': ('int', '0'),
+    'pixel_w': ('int', '0'),
+    'pos_full': ('Any', 'None'),
+    'preview_image': ('Any', 'None'),
+    'processed_count': ('int', '0'),
+    'processed_latent': ('Any', 'None'),
+    'sam_model_path': ('Optional[str]', 'None'),
+    'samples': ('Any', 'None'),
+    'seed': ('int', '0'),
+    'target_classes': ('Any', 'None'),
+    'yolo_confidences_to_use': ('List[float]', 'field(default_factory=list)'),
+    'yolo_models_to_use': ('List[str]', 'field(default_factory=list)'),
+    '放大倍数': ('float', '1.0'),
+    '放大算法': ('str', "'latent_aware'"),
+    '模型': ('Any', 'None'),
+    '正面提示': ('Any', 'None'),
+    '步数': ('int', '20'),
+    '调度器': ('str', "'normal'"),
+    '负面提示': ('Any', 'None'),
+    '采样器': ('str', "'euler'"),
+    '降噪': ('float', '1.0'),
+}
 
 CONTEXT_PY = os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "context.py")
 
@@ -895,7 +1004,7 @@ def _context_source_reads(class_name):
     """某个 Context 那一组来源读到的 `ctx.` 字段并集。"""
     reads = set()
     for module, func in CONTEXT_SOURCES[class_name]:
-        reads |= _ctx_reads(os.path.join(PIPELINE_DIR, module), func)
+        reads |= _ctx_reads(_mod_path(module), func)
     return reads
 
 
@@ -903,7 +1012,7 @@ def _all_stage_ctx_reads():
     """7 个阶段模块读到的 `ctx.` 字段并集（并集 2 的右端）。"""
     reads = set()
     for name in STAGE_MODULES:
-        reads |= _ctx_reads(os.path.join(PIPELINE_DIR, name))
+        reads |= _ctx_reads(_mod_path(name))
     return reads
 
 
@@ -1016,29 +1125,36 @@ class TestSlimContexts(unittest.TestCase):
           （同 `CONTEXT_KEY_SNAPSHOT` 的做法），**别把这道网静静丢掉**。
         """
         defs = _context_classdefs()
+        base = dict(YOLO_RUN_CONTEXT_FIELD_SNAPSHOT)
+
+        # ★ 原件还在时**额外**核一次「快照 == 活的类」：这样这张表是从原件机检来的、
+        #   不是手抄的（手抄的表现在也能通过，但那是巧合）。
+        #   单体现在已删 ⇒ 这一段自动失效（不再是「跳过」，是那段代码不存在了）。
         base_node = defs.get("YoloRunContext")
-        self.assertIsNotNone(
-            base_node,
-            "context.py 里找不到 YoloRunContext —— 本用例的参照物。"
-            "T13 删它时请照 docstring 的交接说明改成冻结快照，不要直接删掉本用例。",
-        )
-        base = _field_specs(base_node)
+        if base_node is not None:
+            live = _field_specs(base_node)
+            self.assertEqual(
+                live, base,
+                "冻结快照与**活的** YoloRunContext 不一致 —— 快照被人手改过，"
+                "或 context.py 的字段注解/默认值在这之后动过。\n"
+                "  快照是「切自哪块原件」的唯一证据，请重新机检生成，不要手改。",
+            )
 
         for name in sorted(CONTEXT_SOURCES):
             cls = defs.get(name)
             self.assertIsNotNone(cls, "context.py 里找不到类 %s" % name)
             specs = _field_specs(cls)
             bad = [
-                "    %s.%s: YoloRunContext 是 %r，这里是 %r" % (name, f, base[f], spec)
+                "    %s.%s: 快照是 %r，这里是 %r" % (name, f, base[f], spec)
                 for f, spec in sorted(specs.items())
                 if f in base and base[f] != spec
             ]
             self.assertEqual(
                 bad, [],
-                "%s 里这些字段的**注解或默认值**与 YoloRunContext 的同名字段不一致：\n"
+                "%s 里这些字段的**注解或默认值**与 YoloRunContext 的冻结快照不一致：\n"
                 "%s\n"
                 "  ⇒ 默认值不同会**改运行期行为**：编译得过、跑得动、界面上看不出来。\n"
-                "  字段名逐字一致还不够 —— 它必须与 YoloRunContext 是**同源的一份拷贝**。"
+                "  字段名逐字一致还不够 —— 它必须与原件（冻结快照）是**同源的一份拷贝**。"
                 % (name, "\n".join(bad)),
             )
 
@@ -1093,6 +1209,629 @@ class TestSlimContexts(unittest.TestCase):
                 "这正是本计划已经踩过一次的 Critical 形状。"
                 % (name, cls.lineno),
             )
+
+
+
+# ==================== 4 个拆分节点的控件表（T8~T14） ====================
+#
+# 拆完之后「某个旋钮在界面上消失」是**不会让任何测试变红**的那一类故障：
+# 控件少了、用户改不了、后端读的是声明默认值、什么都不报。所以拆出来的 4 个节点
+# 各要一张与它的阶段模块**双向对账**过的控件表。
+#
+# ★ 唯一判据：`widget-ownership-table.md` 的「读到它的阶段模块」列 —— 节点 X 的
+#   控件 = 字段被 X 的阶段模块读到的那些控件。**不是**「模块的读取条数」。
+#
+# ★ 15 个「只被 prepare.py 读」的字段没有阶段读者，它们的归属是**人指定**的
+#   （prepare-split-design.md §1）：它们被 prepare 消费成 `ctx.*` 之后再被阶段读。
+#   `PREPARE_ONLY_OWNER` 就是那份指定的机读化。
+#
+# ★ `STAGE_FLAG_FIELDS`：节点 D 的「检测信息」要复述 4 个值，而它在自己那份 cfg 里
+#   读不到它们 —— 计划明文要求**从 payload.stage_flags 快照取，不复制控件**。
+#   所以这 4 个字段对 D 不产生控件要求。
+
+SPLIT_NODE_DIR = pkgs_dir("qianhui_latent_yolo")
+
+#: (节点短名, 文件名, 类名) —— 顺序就是链条顺序。
+SPLIT_NODES = (
+    ("detect", "node_detect.py", "QianhuiYoloDetect"),
+    ("sam", "node_sam.py", "QianhuiSamRefine"),
+    ("repair", "node_repair.py", "QianhuiRegionRepair"),
+    ("global", "node_global.py", "QianhuiGlobalPass"),
+)
+
+#: 每个拆出来的节点**承接哪些 pipeline 阶段模块**（决定它的字段集）。
+NODE_STAGE_MODULES = {
+    "detect": (("detect.py", None),),
+    "sam": (("sam_refine.py", None),),
+    "repair": (("repair.py", None),),
+    # `build_info` 归 D（「检测信息」由它产出）。
+    "global": (("global_pass.py", None), ("report_bits.py", "build_info")),
+}
+
+#: 15 个「只被 prepare.py 读」的字段 → 归哪个节点。
+PREPARE_ONLY_OWNER = {
+    "target_classes_str": ("detect",),
+    "yolo_model_selection": ("detect",),
+    "manual_path": ("detect",),
+    "yolo_model2": ("detect",),
+    "yolo_model3": ("detect",),
+    "yolo_model4": ("detect",),
+    "confidence2": ("detect",),
+    "confidence3": ("detect",),
+    "confidence4": ("detect",),
+    "enable_multi_model": ("detect",),
+    "class_rules_preset": ("detect", "repair"),
+    "class_rules_text": ("detect", "repair"),
+    "sam_model_selection": ("sam",),
+    "sam_model_manual": ("sam",),
+    "cache_device_mode": ("global",),
+}
+
+#: 节点 D 从 `payload.stage_flags` 取的值 → 它不需要对应控件。
+STAGE_FLAG_FIELDS = frozenset(("blend_mode", "use_latent_aware", "enable_yolo", "enable_crop"))
+
+#: 计划 §四个节点的名册 里写死的返回契约（类名 == 注册名）。
+NODE_RETURN_CONTRACT = {
+    "QianhuiYoloDetect": (("IMAGE", "QIANHUI_DETECT", "LATENT"),
+                          ("检测预览", "检测数据", "检测用Latent")),
+    "QianhuiSamRefine": (("QIANHUI_DETECT",), ("检测数据",)),
+    "QianhuiRegionRepair": (("LATENT", "MASK"), ("修复后Latent", "检测遮罩")),
+    "QianhuiGlobalPass": (("LATENT", "STRING"), ("Latent", "检测信息")),
+}
+
+
+def _split_node_path(fname):
+    return os.path.join(SPLIT_NODE_DIR, fname)
+
+
+def _parse(path):
+    with io.open(path, encoding="utf-8") as fh:
+        return ast.parse(fh.read())
+
+
+def _find_class(tree, class_name):
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ClassDef) and n.name == class_name:
+            return n
+    return None
+
+
+def _input_types_sections(path, class_name):
+    """AST 取 `<class_name>.INPUT_TYPES()` 里 return 的那个 dict 的 {required/optional: Dict}。
+
+    与 `test_latent_algorithms._latent_node_widget_decls` 同一套定位法（找同时含
+    `required` 与 `optional` 两个字面量键的 dict），只是不写死文件与类名。
+    """
+    tree = _parse(path)
+    cls = _find_class(tree, class_name)
+    assert cls is not None, "%s 里找不到类 %s" % (path, class_name)
+    fn = None
+    for sub in ast.walk(cls):
+        if isinstance(sub, ast.FunctionDef) and sub.name == "INPUT_TYPES":
+            fn = sub
+            break
+    assert fn is not None, "%s 的 %s 没有 INPUT_TYPES()" % (path, class_name)
+
+    root = None
+    for sub in ast.walk(fn):
+        if not isinstance(sub, ast.Return) or not isinstance(sub.value, ast.Dict):
+            continue
+        keys = {k.value for k in sub.value.keys if isinstance(k, ast.Constant)}
+        if {"required", "optional"} <= keys:
+            root = sub.value
+            break
+    assert root is not None, (
+        "%s 的 INPUT_TYPES() 里找不到同时含 required/optional 的 dict 字面量" % path)
+
+    out = {}
+    for k, v in zip(root.keys, root.values):
+        if isinstance(k, ast.Constant) and k.value in ("required", "optional"):
+            out[k.value] = v
+    assert set(out) == {"required", "optional"}, "%s 的 INPUT_TYPES 少了 required/optional" % path
+    return out
+
+
+def _node_widget_decls(path, class_name):
+    """{控件名: `ast.unparse(声明)`}（required 与 optional 合并）。
+
+    比的是**声明的规范化源码**而不是某个「类别串」：类别串对 COMBO 是整张 options 表，
+    对 INT 只是一句 "INT"，退化成「类型对了就算相等」—— 而计划 §验证③ 要的正是
+    「同名共享控件的**定义**逐个相等」（默认值、min/max/step、tooltip 全都要一样）。
+    """
+    sections = _input_types_sections(path, class_name)
+    out = {}
+    for section in ("required", "optional"):
+        node = sections[section]
+        for k, v in zip(node.keys, node.values):
+            assert isinstance(k, ast.Constant), "%s 里有个非字面量控件名" % path
+            name = k.value
+            assert name not in out, (
+                "%s 的控件 %r 同时出现在 required 与 optional 里" % (path, name))
+            out[name] = ast.unparse(v)
+    return out
+
+
+def _node_widgets(path, class_name):
+    return set(_node_widget_decls(path, class_name))
+
+
+def _node_stage_fields(node_key):
+    """节点承接的阶段模块读到的 cfg 字段 ∪ 归它的那 15 个 prepare-only 字段。"""
+    fields = set()
+    for module, func in NODE_STAGE_MODULES[node_key]:
+        reads, _ = _cfg_access(os.path.join(PIPELINE_DIR, module))
+        fields |= reads
+    for field, owners in PREPARE_ONLY_OWNER.items():
+        if node_key in owners:
+            fields.add(field)
+    return fields - STAGE_FLAG_FIELDS
+
+
+def _class_assigns(path, class_name):
+    """类体里的赋值 `{名字: unparse}`（RETURN_TYPES / FUNCTION / CATEGORY …）。"""
+    cls = _find_class(_parse(path), class_name)
+    assert cls is not None, "%s 里找不到类 %s" % (path, class_name)
+    out = {}
+    for st in cls.body:
+        if isinstance(st, ast.Assign):
+            for t in st.targets:
+                if isinstance(t, ast.Name):
+                    out[t.id] = ast.unparse(st.value)
+    return out
+
+
+class TestSplitNodeWidgets(unittest.TestCase):
+    """4 个节点的控件表：字段覆盖、共享控件同源、整体不漏、契约一致。"""
+
+    def test_each_node_field_set_is_covered_by_its_widgets(self):
+        """★ 每节点「它读的 cfg 字段」必须全部在它的控件表里。
+
+        少了就是那个旋钮在本节点上**不存在**：用户改不了、后端读声明默认值、
+        界面看着正常、什么都不报 —— 正是本计划猎的那一类静默失效。
+        """
+        key_map = _context_key_map()
+        for node_key, fname, cls_name in SPLIT_NODES:
+            fields = _node_stage_fields(node_key)
+            widgets = _node_widgets(_split_node_path(fname), cls_name)
+            missing = sorted(key_map[f] for f in fields if key_map[f] not in widgets)
+            self.assertEqual(
+                missing, [],
+                "%s（%s）少了这些控件：%s\n"
+                "  它们对应的 cfg 字段被本节点的阶段模块读到，却没有对应的控件 ——\n"
+                "  那个旋钮在本节点上不存在，用户改不了、后端读的是声明默认值。"
+                % (cls_name, fname, missing),
+            )
+
+    def test_shared_widget_declarations_are_identical_across_nodes(self):
+        """★ 同名共享控件的**定义**必须逐个相等（计划 §验证③）。
+
+        「跨节点控件两边各放一份，用户手工保持一致」（决策 3）的代价是漂移：
+        两个节点同名控件的默认值/范围不同时，选哪个节点就得到哪套行为，
+        而没有任何一条测试会红。这里把「手工保持一致」从「值」收窄成
+        「只在运行时选择上可以不同」。
+        """
+        decls = {
+            node_key: _node_widget_decls(_split_node_path(fname), cls_name)
+            for node_key, fname, cls_name in SPLIT_NODES
+        }
+        names = {}
+        for node_key, table in decls.items():
+            for name in table:
+                names.setdefault(name, []).append(node_key)
+
+        bad = []
+        for name, owners in sorted(names.items()):
+            if len(owners) < 2:
+                continue
+            specs = {owner: decls[owner][name] for owner in owners}
+            if len(set(specs.values())) > 1:
+                bad.append("    %s（出现在 %s）：\n%s" % (
+                    name, "、".join(owners),
+                    "\n".join("        %-8s %s" % (o, s) for o, s in sorted(specs.items()))))
+        self.assertEqual(
+            bad, [],
+            "同名共享控件的声明在 4 个节点之间不一致：\n%s\n"
+            "  ⇒ 用户在哪个节点上改，就得到哪一套行为。必须逐字相等\n"
+            "    （类型名、默认值、min/max/step、tooltip、options 顺序）。" % "\n".join(bad),
+        )
+
+    def test_the_four_nodes_together_cover_every_widget_of_the_old_node(self):
+        """★ 反「旋钮消失」的兜底：4 个节点的控件并集 ⊇ 旧单体 `node.py` 的 113 个。
+
+        上一条只保证「同名的相等」，这一条保证「一个都没丢」。少了的那一个
+        就是界面上再也找不到的旋钮 —— 而且它的后端逻辑在 4 个节点里都还在跑。
+        """
+        old = set(_latent_node_widget_decls())
+        union = set()
+        for node_key, fname, cls_name in SPLIT_NODES:
+            union |= _node_widgets(_split_node_path(fname), cls_name)
+        self.assertEqual(
+            sorted(old - union), [],
+            "这些控件在旧单体里有、4 个节点里**一个都没有**（界面上的旋钮消失了）：%s"
+            % sorted(old - union),
+        )
+        # 反向不是不变量：节点可以有意多带界面一致性用的控件（如节点 D 的 CN 5），
+        # 那是**加**界面元素，不会让谁消失。故这里只要求并集不小于旧表。
+        self.assertGreaterEqual(len(union), len(old))
+
+    def test_every_node_offers_the_same_preset_dropdown(self):
+        """4 个节点各自的 `配置预设` 都必须逐字等于 `presets.PRESET_LABELS`。
+
+        T12 把预设表按节点拆了，但**档位清单**仍只有一份权威（`presets.py`）。
+        某个节点手抄漏一档 ⇒ 那一档在它的界面上根本不存在，而所有测试都绿。
+        """
+        pres = load_module("qh_presets_for_nodes",
+                           os.path.join(SPLIT_NODE_DIR, "presets.py"))
+        for node_key, fname, cls_name in SPLIT_NODES:
+            sections = _input_types_sections(_split_node_path(fname), cls_name)
+            combo = None
+            for k, v in zip(sections["optional"].keys, sections["optional"].values):
+                if isinstance(k, ast.Constant) and k.value == "配置预设":
+                    combo = v
+            self.assertIsNotNone(combo, "%s 的 optional 里没有 配置预设" % fname)
+            options = [elt.value for elt in combo.elts[0].elts] if isinstance(combo, ast.Tuple) else None
+            self.assertEqual(
+                options, pres.PRESET_LABELS,
+                "%s 的配置预设档位与 presets.PRESET_LABELS 不一致：\n  少：%s\n  多：%s"
+                % (fname, sorted(set(pres.PRESET_LABELS) - set(options or [])),
+                   sorted(set(options or []) - set(pres.PRESET_LABELS))),
+            )
+
+    def test_node_contract_matches_the_plan(self):
+        """CATEGORY / FUNCTION / RETURN_TYPES / RETURN_NAMES 逐个对上计划名册。
+
+        这些字符串是 ComfyUI 的**外部接口**：改一个字母，老 workflow 的连线
+        就匹配不上了，而它是运行时才表现出来的（构建期什么都不报）。
+        """
+        for node_key, fname, cls_name in SPLIT_NODES:
+            assigns = _class_assigns(_split_node_path(fname), cls_name)
+            self.assertEqual(assigns.get("CATEGORY"), "'千绘/修复'", "%s 的 CATEGORY 不对" % fname)
+            self.assertEqual(assigns.get("FUNCTION"), "'process'", "%s 的 FUNCTION 不对" % fname)
+            types, names = NODE_RETURN_CONTRACT[cls_name]
+            self.assertEqual(
+                assigns.get("RETURN_TYPES"),
+                "(" + ", ".join("'%s'" % t for t in types) + ("," if len(types) == 1 else "") + ")",
+                "%s 的 RETURN_TYPES 与计划名册不符" % fname)
+            self.assertEqual(
+                assigns.get("RETURN_NAMES"),
+                "(" + ", ".join("'%s'" % n for n in names) + ("," if len(names) == 1 else "") + ")",
+                "%s 的 RETURN_NAMES 与计划名册不符" % fname)
+
+
+class TestSplitNodePayloadOrder(unittest.TestCase):
+    """payload 的顺序契约：遍历只能走 `iter_frames_in_order`（计划明文）。"""
+
+    def test_no_node_touches_payload_frames_directly(self):
+        """★ 4 个节点里**一个** `.frames` 属性访问都不许有。
+
+        `payload.frames` 是裸 list，直接遍历就绕开了「帧号与下标对齐」那道断言；
+        而全局降噪节点的视频时序平滑**依赖顺序**：顺序一旦错乱它不报错、
+        只是给出看似正常的错误画面。所以这里从根上禁止出现这个属性名。
+        """
+        hits = {}
+        for node_key, fname, cls_name in SPLIT_NODES:
+            lines = [n.lineno for n in ast.walk(_parse(_split_node_path(fname)))
+                     if isinstance(n, ast.Attribute) and n.attr == "frames"]
+            if lines:
+                hits[fname] = sorted(lines)
+        self.assertEqual(
+            hits, {},
+            "这些节点直接碰了 `...frames`（必须走 payload.iter_frames_in_order）：%s" % hits,
+        )
+
+    def test_every_payload_consumer_uses_the_single_entrypoint(self):
+        """B / C / D 都要**真的**调 `iter_frames_in_order` —— 只禁止 `.frames` 不够：
+
+        有人把遍历整个删掉（例如 `for frame in []`）同样不会碰 `.frames`，
+        而那个节点会静默什么都不做。
+        """
+        for node_key, fname, cls_name in SPLIT_NODES:
+            if node_key == "detect":
+                continue                     # 节点 A 是 payload 的**生产方**，不遍历
+            calls = [
+                n for n in ast.walk(_parse(_split_node_path(fname)))
+                if isinstance(n, ast.Call)
+                and isinstance(n.func, ast.Name) and n.func.id == "iter_frames_in_order"
+            ]
+            self.assertTrue(
+                calls,
+                "%s 没有调用 iter_frames_in_order —— payload 的遍历入口只有这一个" % fname,
+            )
+
+
+class TestSplitNodesUseSharedCache(unittest.TestCase):
+    """T5：4 个拆出来的节点各自都必须用模块级单例，而不是各 new 一个缓存。"""
+
+    def test_each_split_node_init_uses_the_shared_cache(self):
+        """逐节点调一次 `_assert_node_uses_shared_cache`（它就是为这一步准备的）。
+
+        各持一份的后果：修复节点伸手卸的是自己那个**空**缓存，检测节点加载的模型
+        再没人卸 —— 不报错、不崩，只是显存一直涨。
+        """
+        for node_key, fname, cls_name in SPLIT_NODES:
+            _assert_node_uses_shared_cache(self, _split_node_path(fname), cls_name)
+
+
+# ==================== SAM 3 分支（T9 的追加需求） ====================
+#
+# 用户后续明确要求支持 SAM 3 ⇒ 这条盖过了「leaf mixin / model_managers 冻结」的原计划。
+# 它有两处**顺序**是正确性的一部分，而顺序错了都不会报错、只会给出错误行为：
+#
+#   ① `detect_sam_version` 里，sam3 的关键词表必须排在 sam2 的**前面**。
+#      SAM 3 沿用 Hiera 骨干，官方权重名是 `sam3_hiera_l.pt` —— 名字里**带 `hiera`**。
+#      顺序反了，sam3 权重被判成 sam2 ⇒ 拿 `build_sam2` + 加载一个形状不匹配的
+#      checkpoint，报错出现在一个与真正原因毫无关系的地方。
+#   ② `_refine_with_sam` 的加载分派里，sam3 分支必须是 sam2 分支的**同一串**
+#      （elif），不能另起一个 if 挂在后面 —— 那样 sam3 分支是死代码。
+#
+# 两条都只做 AST 静态解析（这两个模块都 import comfy 运行时，不能直接载）。
+
+_MODEL_MANAGERS_PY = os.path.join(SPLIT_NODE_DIR, "model_managers.py")
+_SAM_MIXIN_PY = os.path.join(SPLIT_NODE_DIR, "mixins", "sam.py")
+
+
+def _funcdef(path, name):
+    for n in ast.walk(_parse(path)):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name:
+            return n
+    return None
+
+
+def _keyword_probe_line(fn, keywords):
+    """函数体里「用这张关键词表判定版本」的位置（行号）；找不到返回 None。
+
+    判据是**表里的元素**而不是变量名：变量名可以改，`'sam3'` 这个字面量是行为本身。
+    两种写法都认，因为两种都常见：
+      * 先赋值 `x_keywords = [...]`，再 `if any(kw in filename for kw in x_keywords)`；
+      * 直接把表内联进 `if any(kw in filename for kw in [...])`。
+
+    取 min(赋值行, 判定行)：赋值的顺序就是判定的顺序（表赋值完下一句才是 if），
+    内联写法没有赋值行、只剩判定行 —— 两种写法下「谁在前」都得到同一答案。
+    """
+    want = set(keywords)
+    lines, var_names = [], set()
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Assign) and isinstance(n.value, (ast.List, ast.Tuple)):
+            vals = {e.value for e in n.value.elts if isinstance(e, ast.Constant)}
+            if vals == want:
+                lines.append(n.lineno)
+                for t in n.targets:
+                    if isinstance(t, ast.Name):
+                        var_names.add(t.id)
+    for n in ast.walk(fn):
+        if not isinstance(n, ast.If):
+            continue
+        lists = [x for x in ast.walk(n.test) if isinstance(x, (ast.List, ast.Tuple))]
+        inline = any(
+            {e.value for e in l.elts if isinstance(e, ast.Constant)} == want
+            for l in lists
+        )
+        refs = {x.id for x in ast.walk(n.test) if isinstance(x, ast.Name)} & var_names
+        if inline or refs:
+            lines.append(n.lineno)
+    return min(lines) if lines else None
+
+
+# ==================== T12：预设按节点分表 ====================
+#
+# 分表之后「一键套预设」才有意义：每个节点只有一部分控件，整张表写下去会让
+# **本节点没有的旋钮**也被改 —— 用户看不见、也不报错。
+# 这三条网盯的都是同一类静默失效：
+#   ① 某个键**任何**节点都没有 ⇒ 那个旋钮对预设完全免疫（切了没反应）；
+#   ② 某个键挂在**不声明它**的节点上 ⇒ 前端 `widgets.find` 找不到、静默跳过；
+#   ③ 前端那张**静态**闸门表（JS 里的 NODE_OF）与后端的表漂移 ⇒ 联动整个不注册。
+
+_PRESETS_PY = os.path.join(SPLIT_NODE_DIR, "presets.py")
+
+
+def _presets():
+    return load_module("qh_presets_for_partition", _PRESETS_PY)
+
+
+class TestPresetTablesArePartitioned(unittest.TestCase):
+    """NODE_KEYS 的分表：并集完整、每键都在本节点的控件表里、payload 形状对。"""
+
+    def test_preset_key_partition_covers_every_field_of_key(self):
+        """★ NODE_KEYS 的并集必须**恰好**等于 `FIELD_OF` 的键集合（19 个）。
+
+        少了谁，那个旋钮在**任何**节点上都对预设免疫：用户切档位、面板纹丝不动、
+        后端也不写 —— 这是本计划猎的那类静默失效里最隐蔽的一种
+        （因为它只在「恰好是那个旋钮」时表现出来）。
+        多了谁，就是把 `FIELD_OF` 之外的名字挂上了表 —— 那就是拼写错。
+        """
+        pres = _presets()
+        union = set()
+        for keys in pres.NODE_KEYS.values():
+            union |= set(keys)
+        self.assertEqual(
+            sorted(set(pres.FIELD_OF) - union), [],
+            "这些键**任何**节点都没有 —— 那个旋钮对预设完全免疫（切了没反应）：%s"
+            % sorted(set(pres.FIELD_OF) - union),
+        )
+        self.assertEqual(
+            sorted(union - set(pres.FIELD_OF)), [],
+            "这些键不在 FIELD_OF 里 —— 拼写错？%s" % sorted(union - set(pres.FIELD_OF)),
+        )
+        # 预设表里出现过的键也必须全覆盖（FIELD_OF 是它的超集，这里显式再钉一次，
+        # 免得将来「FIELD_OF 有、PRESETS 没用」的键把并集撑大而看不出）
+        used = set()
+        for table in pres.PRESETS.values():
+            used |= set(table)
+        self.assertEqual(
+            sorted(used - union), [],
+            "预设表用到、但没有任何节点承接的键：%s" % sorted(used - union),
+        )
+
+    def test_every_node_preset_key_is_a_widget_of_that_node(self):
+        """★ 每个节点表里的键，必须真的是**该节点自己**的控件。
+
+        不成立时的症状：前端 `node.widgets.find(x => x.name === key)` 找不到，
+        `continue` 掉、不报错 —— 预设看着应用了，那个参数其实没写。
+        后端也一样：`apply_preset` 会写进 cfg，但那个字段本节点根本读不到。
+        """
+        pres = _presets()
+        for node_key, fname, cls_name in SPLIT_NODES:
+            widgets = _node_widgets(_split_node_path(fname), cls_name)
+            stray = sorted(set(pres.NODE_KEYS[node_key]) - widgets)
+            self.assertEqual(
+                stray, [],
+                "%s（%s）的预设表里有不属于它的控件：%s\n"
+                "  ⇒ 前端找不到 widget 会静默跳过，后端写了也没人读。"
+                % (cls_name, fname, stray),
+            )
+
+    def test_payload_is_split_per_node(self):
+        """`as_payload()` 的形状：`presets[节点短名][档位名] = {控件名: 值}`，
+        且每档**只含本节点的键**。这是前端 `applyToNode` 的取数契约。"""
+        pres = _presets()
+        payload = pres.as_payload()
+        self.assertEqual(sorted(payload["nodes"]), sorted(pres.NODE_OF))
+        self.assertEqual(sorted(payload["presets"]), sorted(pres.NODE_KEYS))
+        self.assertEqual(payload["labels"], pres.PRESET_LABELS)
+        for node_key, per_node in payload["presets"].items():
+            self.assertEqual(sorted(per_node), sorted(pres.PRESETS),
+                             "每个节点都要有**全部**档位（空的档位会让下拉框选了个寂寞）")
+            allowed = set(pres.NODE_KEYS[node_key])
+            for tier, table in per_node.items():
+                self.assertTrue(table, "「%s」在 %s 上是空表" % (tier, node_key))
+                self.assertEqual(
+                    sorted(set(table) - allowed), [],
+                    "「%s」在 %s 上带了不属于它的键：%s"
+                    % (tier, node_key, sorted(set(table) - allowed)),
+                )
+                # 值必须与总表一致（分表只能是**子集**，不许另抄一份值）
+                for k, v in table.items():
+                    self.assertEqual(v, pres.PRESETS[tier][k],
+                                     "「%s」· %s 的值与总表不一致" % (tier, k))
+
+    def test_node_of_matches_the_four_registered_names(self):
+        """`NODE_OF` 的键 == 4 个注册名，值 == 4 个节点短名。"""
+        pres = _presets()
+        self.assertEqual(sorted(pres.NODE_OF),
+                         sorted(cls for _, _, cls in SPLIT_NODES))
+        self.assertEqual(sorted(pres.NODE_OF.values()),
+                         sorted(k for k, _, _ in SPLIT_NODES))
+
+    def test_js_gate_table_matches_the_backend(self):
+        """★ 前端那张**静态**闸门表必须与 `presets.NODE_OF` 同构。
+
+        为什么 JS 里必须另有一张：`beforeRegisterNodeDef` 跑在
+        `/qianhui_preset_data` 回来**之前**（那一刻表恒为 null），
+        所以「要不要给这个节点挂联动」只能用静态表决定 —— 用 payload 决定
+        会让整条联动永不注册（预设面板在、选了什么都不动、不报错）。
+        代价就是这张表会和后端漂移；本条把它钉住。
+
+        ★ 只做正则文本匹配，**不跑 node**（CI 上不一定有 node，也不该有）。
+        """
+        with io.open(os.path.join(ROOT, "js", "latent_yolo_presets.js"),
+                     encoding="utf-8") as fh:
+            src = fh.read()
+        block = re.search(r"const NODE_OF = \{(.*?)\};", src, re.S)
+        self.assertIsNotNone(block, "js/latent_yolo_presets.js 里找不到静态 NODE_OF 表")
+        pairs = re.findall(r"(\w+)\s*:\s*\"(\w+)\"", block.group(1))
+        self.assertTrue(pairs, "静态 NODE_OF 表解析成空 —— 形状变了，请同步本条正则")
+        self.assertEqual(
+            dict(pairs), _presets().NODE_OF,
+            "前端静态闸门表与后端 presets.NODE_OF 不一致：\n"
+            "  前端 %s\n  后端 %s\n"
+            "  ⇒ 症状是「预设面板在，但选了什么都不动」，而且不报错。\n"
+            "  （注意这不是「自动同步」的：前端那张必须静态，理由见本用例 docstring）"
+            % (dict(pairs), _presets().NODE_OF),
+        )
+
+
+class TestSam3DispatchOrder(unittest.TestCase):
+    """两处「顺序即正确性」的 SAM 3 绊线。"""
+
+    def test_sam3_is_detected_before_sam2(self):
+        """★ `detect_sam_version` 里 sam3 的关键词表必须排在 sam2 的表之前。
+
+        反例（真会发生）：按「从新到旧」以外的某种直觉把 sam2 的表放前面，
+        `sam3_hiera_l.pt` 先命中 `hiera` → 判成 sam2 → 用 SAM2 的加载器装
+        SAM3 的权重。现象是「装了 SAM3 就报一条看不懂的错」，不是「识别不出 SAM3」。
+        """
+        fn = _funcdef(_MODEL_MANAGERS_PY, "detect_sam_version")
+        self.assertIsNotNone(fn, "model_managers.py 里没有 detect_sam_version")
+        sam3 = _keyword_probe_line(fn, ["sam3", "sam_3", "sam-3"])
+        sam2 = _keyword_probe_line(fn, ["sam2", "hiera", "sam_2", "sam-2"])
+        self.assertIsNotNone(sam3, "找不到 sam3 的关键词判定")
+        self.assertIsNotNone(sam2, "找不到 sam2 的关键词判定")
+        self.assertLess(
+            sam3, sam2,
+            "sam3 的关键词判定在第 %d 行、sam2 的在第 %d 行 —— sam3 必须在前。\n"
+            "  反了的话 `sam3_hiera_l.pt` 会先命中 sam2 的 `hiera` 关键词被判成 sam2，\n"
+            "  于是拿 SAM2 的加载器去装 SAM3 的权重：报错发生在与真正原因无关的地方。"
+            % (sam3, sam2),
+        )
+
+    def test_sam3_load_branch_is_before_sam2_in_the_same_chain(self):
+        """★ 加载分派里 sam3 必须与 sam2 是**同一串**（sam3 在前），不能另起一个 if。
+
+        另起一个 `if` 挂在 sam2 之后 ⇒ sam3 分支永远不可达（sam2 那条先命中），
+        而代码看着「两种都支持」。
+        """
+        fn = _funcdef(_SAM_MIXIN_PY, "_refine_with_sam")
+        self.assertIsNotNone(fn, "mixins/sam.py 里没有 _refine_with_sam")
+
+        outer = None
+        for n in ast.walk(fn):
+            if (isinstance(n, ast.If) and isinstance(n.test, ast.Compare)
+                    and any(isinstance(c, ast.Constant) and c.value == "sam3"
+                            for c in n.test.comparators)):
+                outer = n
+                break
+        self.assertIsNotNone(outer, "sam.py 里找不到 `sam_version == \"sam3\"` 的分支")
+
+        inner = [n for n in outer.orelse if isinstance(n, ast.If)]
+        self.assertEqual(
+            len(inner), 1,
+            "sam3 的那条 `if` 之后不是**恰好一条** elif（.orelse 里有 %d 条 if）——\n"
+            "  说明它没和 sam2 串在同一条链上。" % len(inner),
+        )
+        self.assertTrue(
+            isinstance(inner[0].test, ast.Compare)
+            and any(isinstance(c, ast.Constant) and c.value == "sam2"
+                    for c in inner[0].test.comparators),
+            "sam3 的 elif 链上的下一条不是 `sam_version == \"sam2\"`（第 %d 行）—— "
+            "SAM1 与 SAM2 两条路的先后被改动了。" % inner[0].lineno,
+        )
+
+    def test_sam3_adapter_keeps_the_shared_predictor_contract(self):
+        """★ `_SAM3BoxPredictor` 必须提供下游循环真正调的那两个方法/关键字。
+
+        下游那段推理循环（SAM1/SAM2 共用）调的是 `set_image(image_np)` 与
+        `predict(box=..., multimask_output=True)`。适配层少一个方法 / 少一个关键字，
+        就是「选了 SAM3 就崩」—— 而所有测试都绿（本机没装 sam3）。
+        """
+        cls = _find_class(_parse(_SAM_MIXIN_PY), "_SAM3BoxPredictor")
+        self.assertIsNotNone(cls, "sam.py 里没有 _SAM3BoxPredictor 适配层")
+
+        methods = {}
+        for st in cls.body:
+            if isinstance(st, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                methods[st.name] = st
+        for want in ("set_image", "predict"):
+            self.assertIn(
+                want, methods,
+                "_SAM3BoxPredictor 少了 %s() —— 下游循环会 AttributeError" % want,
+            )
+
+        for arg in ("box", "multimask_output"):
+            self.assertIn(
+                arg, {a.arg for a in methods["predict"].args.args},
+                "`_SAM3BoxPredictor.predict` 没有形参 %r —— 下游是按关键字调的，"
+                "少了它当场 TypeError" % arg,
+            )
+
+        # 返回三元组：下游写的是 `masks, scores, _ = ...`。
+        returns = [n for n in ast.walk(methods["predict"]) if isinstance(n, ast.Return)]
+        self.assertTrue(returns, "_SAM3BoxPredictor.predict 里找不到 return")
+        ok = any(isinstance(r.value, ast.Tuple) and len(r.value.elts) == 3 for r in returns)
+        self.assertTrue(
+            ok,
+            "`_SAM3BoxPredictor.predict` 没有一条 return 是三元组 —— "
+            "下游写的是 `masks, scores, _ = predictor.predict(...)`。",
+        )
 
 
 if __name__ == "__main__":

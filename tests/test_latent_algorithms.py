@@ -343,31 +343,61 @@ def _widget_spec(decl):
 
 
 def _latent_node_widget_decls():
-    """{控件名: (kind, spec)}，合并 node.py INPUT_TYPES 的 required 与 optional。
+    """{控件名: (kind, spec)}，**4 个拆出来的节点** INPUT_TYPES 的并集（同名计一次）。
 
-    定位方式：找那个**同时有 required 与 optional 两个字面量键**的 dict
+    定位方式：逐文件找那个**同时有 required 与 optional 两个字面量键**的 dict
     （即 INPUT_TYPES 的返回体；配置预设 是它 optional 子 dict 的键，不是它自己的键），
-    再合并两个子 dict。不依赖行号，抗重排。
+    再合并两个子 dict，最后把 4 份并起来。不依赖行号，抗重排。
+
+    ★ T13 交接：单体 `node.py` 退役后本函数**换数据源**、函数名与位置不动 ——
+      4 个消费者（test_latent_split_e2e.py:502、本文件 :546/:588/:670）一行都不用改。
+    ★ 并集 = 114 ⊇ 旧单体的 113，所以「FIELD_OF 的键都是真控件」「预设值都在真控件上」
+      「配套的档位表等于 PRESET_LABELS」这几条的**语义完全不变**，只是把参照物从
+      「那一个巨型节点」换成了「拆分后的全部节点」—— 控件总数变了，覆盖率没变。
+    ★ 4 个节点对同名控件的声明必须逐字相同（拆分区守卫 G2 盯着），所以「同名计一次」
+      取哪一份都行；这里**取先出现的那份**，并在与已有声明不一致时直接报错 ——
+      那种情况说明 G2 那位失守了，不该在这里悄悄挑一个。
     """
-    path = os.path.join(pkgs_dir("qianhui_latent_yolo"), "node.py")
-    with io.open(path, encoding="utf-8") as fh:
-        tree = ast.parse(fh.read())
+    cls_by_file = (
+        ("node_detect.py", "QianhuiYoloDetect"),
+        ("node_sam.py", "QianhuiSamRefine"),
+        ("node_repair.py", "QianhuiRegionRepair"),
+        ("node_global.py", "QianhuiGlobalPass"),
+    )
 
     def keys_of(d):
         return {k.value for k in d.keys if isinstance(k, ast.Constant)}
 
-    root = None
-    for n in ast.walk(tree):
-        if isinstance(n, ast.Dict) and {"required", "optional"} <= keys_of(n):
-            root = n
-            break
-    assert root is not None, "node.py 里找不到同时含 required/optional 的 INPUT_TYPES 字面量"
-
     decls = {}
-    for section in ("required", "optional"):
-        sub = _dict_node_value(root, section)
-        for k, v in zip(sub.keys, sub.values):
-            decls[_const_value(k)] = _widget_spec(v)
+    for fname, cls_name in cls_by_file:
+        path = os.path.join(pkgs_dir("qianhui_latent_yolo"), fname)
+        with io.open(path, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        cls_node = next((n for n in ast.walk(tree)
+                         if isinstance(n, ast.ClassDef) and n.name == cls_name), None)
+        assert cls_node is not None, "%s 里找不到类 %s" % (fname, cls_name)
+        fn = next((n for n in ast.walk(cls_node)
+                   if isinstance(n, ast.FunctionDef) and n.name == "INPUT_TYPES"), None)
+        assert fn is not None, "%s 的 %s 没有 INPUT_TYPES" % (fname, cls_name)
+
+        root = None
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Dict) and {"required", "optional"} <= keys_of(n):
+                root = n
+                break
+        assert root is not None, "%s 里找不到同时含 required/optional 的 INPUT_TYPES 字面量" % fname
+
+        for section in ("required", "optional"):
+            sub = _dict_node_value(root, section)
+            for k, v in zip(sub.keys, sub.values):
+                name = _const_value(k)
+                spec = _widget_spec(v)
+                if name in decls:
+                    assert decls[name] == spec, (
+                        "控件 %r 在多个拆分节点里的声明不一致：%r vs %r（见 %s）—— "
+                        "同名共享控件必须逐字相同（守卫 G2），这里不替你挑一个。"
+                        % (name, decls[name], spec, fname))
+                decls[name] = spec
     assert "配置预设" in decls, "解析出的控件表里没有 配置预设 —— 锚点可能找错了 dict"
     return decls
 

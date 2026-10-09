@@ -181,14 +181,29 @@ class SAMModelManager:
         """
         检测SAM模型版本
 
+        ★ 判定的**顺序**是这段代码的一部分，别按「从新到旧」重排成别的样子：
+
+        SAM 3 的官方权重名形如 `sam3_hiera_l.pt`、`sam3.1_hiera_large.pt` ——
+        SAM 3 沿用 Hiera 骨干，名字里**带 `hiera`**。若先跑下面那条 sam2 的
+        关键词表，`sam3_hiera_l.pt` 会命中 `hiera` 被判成 **sam2**，
+        于是拿 SAM2 的 `build_sam2` + `SAM2ImagePredictor` 去装 SAM 3 的权重 ——
+        报错发生在 `build_sam2` 内部的某个无关位置（配置/形状不匹配），
+        用户看到的是一条与真正原因毫无关系的报错。所以 sam3 必须**排在最前**。
+
         Returns:
             "sam1" - SAM v1 (segment-anything)
             "sam2" - SAM 2 / SAM 2.1
+            "sam3" - SAM 3
         """
         if not model_path or not os.path.exists(model_path):
             return "sam1"  # 默认
 
         filename = os.path.basename(model_path).lower()
+
+        # SAM 3特征：包含sam3 —— ★ 必须排在 sam2 的 `hiera` 之前（见 docstring）
+        sam3_keywords = ['sam3', 'sam_3', 'sam-3']
+        if any(kw in filename for kw in sam3_keywords):
+            return "sam3"
 
         # SAM 2特征：包含sam2、hiera等关键词
         sam2_keywords = ['sam2', 'hiera', 'sam_2', 'sam-2']

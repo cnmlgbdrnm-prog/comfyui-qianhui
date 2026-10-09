@@ -238,6 +238,46 @@ class TestWatermarkPackageImport(unittest.TestCase):
         for name in ("QianhuiLatentYOLO", "QianhuiWatermarkAdd", "QianhuiWatermarkExtract"):
             self.assertIn(name, registered, "根 __init__.py 没有注册 %s" % name)
 
+    def test_root_init_registers_the_four_split_nodes(self):
+        """★ 拆出来的 4 个节点必须都在根 __init__.py 的注册表里。
+
+        为什么单独一条、而且要**正向断言**：T13 的验收标准之一是「旧注册名
+        `QianhuiLatentYOLO` 从根 __init__.py 消失」，而删那 3 行的同时很容易
+        把新名的注册一起碰掉 —— 那样「换掉了」就成了「换没了」：4 个节点在菜单里
+        全部消失，而 `test_root_init_registers_watermark_names` 只管水印那两个，
+        一个测试都不会红。所以这里把「4 个新名都在」钉死，与「旧名在不在」
+        分开断言（旧名那条的取舍见 test_root_init_registers_watermark_names）。
+
+        与另一条同样的读法：ast 读根 `__init__.py`，**不 import** 根包。
+        """
+        with open(os.path.join(ROOT, "__init__.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        registered = set()
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call):
+                f = n.value.func
+                if isinstance(f, ast.Attribute) and f.attr == "update":
+                    for arg in n.value.args:
+                        if isinstance(arg, ast.Dict):
+                            for k in arg.keys:
+                                if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                                    registered.add(k.value)
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    if (isinstance(t, ast.Subscript)
+                            and isinstance(t.value, ast.Name)
+                            and t.value.id == "NODE_CLASS_MAPPINGS"
+                            and isinstance(t.slice, ast.Constant)):
+                        registered.add(t.slice.value)
+        expected = {"QianhuiYoloDetect", "QianhuiSamRefine",
+                    "QianhuiRegionRepair", "QianhuiGlobalPass"}
+        self.assertEqual(
+            sorted(expected - registered), [],
+            "根 __init__.py 少了这些新注册名：%s\n"
+            "  ⇒ 那 4 个节点会从菜单里消失（而且不会有别的测试变红）。"
+            % sorted(expected - registered),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

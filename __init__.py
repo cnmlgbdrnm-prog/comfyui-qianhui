@@ -109,10 +109,27 @@ except Exception as e:
     print(f"❌ 千绘 多LoRA XY网格模块加载失败: {e}")
 
 # 11. Latent 智能修复模块
+# ★ 界面层已拆成 4 个节点（YOLO检测 → SAM精修 → 区域修复 → 全局降噪）。
+#   旧名 QianhuiLatentYOLO 保留到摘单体那一步（计划 T13）之后再从这里去掉 ——
+#   注册表是本文件说了算，所以「节点在不在菜单里」这件事只有一个开关。
 try:
-    from .nodes.qianhui_latent_yolo import QianhuiLatentYOLO
+    from .nodes.qianhui_latent_yolo import (
+        QianhuiLatentYOLO,
+        QianhuiYoloDetect,
+        QianhuiSamRefine,
+        QianhuiRegionRepair,
+        QianhuiGlobalPass,
+    )
     NODE_CLASS_MAPPINGS["QianhuiLatentYOLO"] = QianhuiLatentYOLO
     NODE_DISPLAY_NAME_MAPPINGS["QianhuiLatentYOLO"] = "千绘 · Latent智能修复 (YOLO+SAM+CN V6.11.3)"
+    NODE_CLASS_MAPPINGS["QianhuiYoloDetect"] = QianhuiYoloDetect
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiYoloDetect"] = "千绘 · YOLO检测"
+    NODE_CLASS_MAPPINGS["QianhuiSamRefine"] = QianhuiSamRefine
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiSamRefine"] = "千绘 · SAM精修"
+    NODE_CLASS_MAPPINGS["QianhuiRegionRepair"] = QianhuiRegionRepair
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiRegionRepair"] = "千绘 · 区域修复"
+    NODE_CLASS_MAPPINGS["QianhuiGlobalPass"] = QianhuiGlobalPass
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiGlobalPass"] = "千绘 · 全局降噪"
 except Exception as e:
     print(f"❌ 千绘 Latent修复模块加载失败: {e}")
 

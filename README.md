@@ -29,15 +29,43 @@ ComfyUI 综合提示词插件，由五个历史插件整合而成：
 | 千绘 · 战斗指挥官 | `QianhuiCombatMaster` | 武器/招式/战损/特效/运镜组合，随机激战或手动指令；武器-招式组联动防错配；输出纯标签（不加权重） |
 | 千绘 · 角色随机师 | `QianhuiRandomCharacter` | V2：分类筛选（不限/女/男/兽类·福瑞/机械·人造人/兽娘/机械娘）+ 手动指定（选作品→角色下拉联动→指定角色或作品内随机）；Danbooru 高频角色两级随机，按模型自动转义；1629 角色分类标签与全量汉化（英文口输出供提示词使用，中文口输出显示名） |
 | 千绘 · 多LoRA XY网格 | `QianhuiMultiLoRAGrid` | XY 网格批量对比 LoRA（行=最多 6 个 LoRA + No LoRA 基线行，列=X 轴统一权重），逐格挂载采样、实时预览、拼图输出；自动溯源底模名称与正/负向提示词绘制在信息栏 |
-| 千绘 · Latent智能修复 | `QianhuiLatentYOLO` | YOLO 多尺度检测 + Tile 分块 + Seg 分割 + SAM 精修 + ControlNet + 手脚增强；`配置预设` 五档一键调速/调质 |
+| 千绘 · YOLO检测 | `QianhuiYoloDetect` | 4 节点链**第 1 环**：YOLO 多尺度检测 + Tile 分块 + Seg 分割；输出 `IMAGE`(检测预览) / `QIANHUI_DETECT`(检测数据) / `LATENT`(检测用Latent)；61 个控件 |
+| 千绘 · SAM精修 | `QianhuiSamRefine` | 第 2 环：把 YOLO 检测框细化为精确分割 mask（SAM v1 / SAM 2 / SAM 2.1 / SAM 3 自动识别版本）；7 个控件 |
+| 千绘 · 区域修复 | `QianhuiRegionRepair` | 第 3 环：按检测遮罩局部重绘（裁剪精修 / 融合模式 / ControlNet / 手脚增强）；输出 `LATENT` + `MASK`；62 个控件 |
+| 千绘 · 全局降噪 | `QianhuiGlobalPass` | 第 4 环：修复后全图降噪 + 视频时序平滑 + 检测信息汇总；输出 `LATENT` + `STRING`；25 个控件 |
+| 千绘 · Latent智能修复 | `QianhuiLatentYOLO` | ★ **旧的一体化节点，正在退役**：功能等价于上面 4 个节点串联（113 个控件挤在一个节点里）。新工作流请用上面 4 个；老 workflow 仍能打开 |
 | 千绘 · 水印添加 | `QianhuiWatermarkAdd` | 可见水印（文字/图片平铺）与 DCT-QIM 隐形水印；依赖 `reedsolo` |
 | 千绘 · 水印提取 | `QianhuiWatermarkExtract` | 提取 DCT-QIM 隐形水印文本 |
+
+## 千绘 · Latent 修复：4 节点链
+
+原来的「千绘 · Latent智能修复」是一个 113 控件的巨型节点，已按界面层拆成 4 个：
+
+```
+[千绘 · YOLO检测] ──检测数据(QIANHUI_DETECT)──┬─→ [千绘 · SAM精修] ──检测数据──→ [千绘 · 区域修复] ──Latent──→ [千绘 · 全局降噪]
+                                              └─→ [千绘 · 区域修复]（旁路：跳过 SAM）
+        │                                                                                              │
+        └──Latent(检测用Latent)──────────────────────────────────────────────────────────────────────┘
+```
+
+接线三条：
+
+- `检测数据`（自定义 socket 类型 **`QIANHUI_DETECT`**）：**节点 A 产出，B/C/D 都要接**。
+  它是一份逐帧的记录（每帧的检测框、分割 mask、像素/潜空间尺寸、解码后的原图、
+  以及中断补帧标记）。SAM 精修是**可选**环节 —— 不接 B，把 A 的 `检测数据`
+  直接连到 C 即可（这就是「旁路」那条线）。
+- `Latent`：`检测用Latent`（A 的第 3 路）→ C 的 `Latent`；C 的 `Latent` 再进 D。
+  串上以后 4 个节点的 `Latent` 始终是同一批帧，链上逐帧对齐。
+- `检测信息`：D 的第 2 路输出，即旧节点那份统计文本。
+
+`配置预设` 每个节点都有，但**只覆盖本节点自己的那些控件**（预设表按节点分，
+见 `nodes/qianhui_latent_yolo/presets.py` 的 `NODE_KEYS`）。
 
 ## 目录结构
 
 ```
 comfyui-qianhui/
-├── __init__.py          # 注册入口 (13 节点统一 Qianhui 前缀)
+├── __init__.py          # 注册入口 (17 节点统一 Qianhui 前缀)
 ├── nodes/               # 节点实现
 │   ├── negative_node.py     # 智能负面提示词
 │   ├── story_node.py        # 剧情播放器 + 剧情编排机
@@ -48,7 +76,7 @@ comfyui-qianhui/
 │   ├── combat_node.py       # 战斗指挥官
 │   ├── role_name_node.py    # 角色随机师
 │   ├── lora_grid_node.py    # 多LoRA XY网格
-│   ├── qianhui_latent_yolo/ # Latent 智能修复（支撑模块 + 6 Mixin + 5 阶段函数）
+│   ├── qianhui_latent_yolo/ # Latent 修复：4 个节点文件 + payload + presets + 6 Mixin + 5 阶段函数
 │   └── qianhui_watermark/   # 水印添加 / 提取
 ├── data/                # 角色素材 + 高频角色名库(role_names/role_owner/role_names_cn)
 ├── story_scripts/       # 剧本文件

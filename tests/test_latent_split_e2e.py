@@ -389,11 +389,15 @@ _NODE_MODULE = None
 _NODE_CLS = None
 _WIDGET_DEFAULTS = None
 _WIDGET_DECLS = None
+#: 拆分侧：{"detect"|"sam"|"repair"|"global": 类} 与同名模块（要 patch 模块级名字）。
+_SPLIT_CLS = {}
+_SPLIT_MOD = {}
 
 
 def setUpModule():
     global _SNAPSHOT, _CUDA_AVAILABLE_ORIG, _NUM_THREADS_ORIG, _MANAGER_CACHE_ORIG
     global _NODE_MODULE, _NODE_CLS, _WIDGET_DEFAULTS, _WIDGET_DECLS
+    global _SPLIT_CLS, _SPLIT_MOD
 
     _SNAPSHOT = dict(sys.modules)
 
@@ -467,15 +471,32 @@ def setUpModule():
                          os.path.join(LATENT_PKG, "node.py"))
     _NODE_CLS = _NODE_MODULE.QianhuiLatentYOLO
 
+    # ⑥ 拆分侧的 4 个节点模块：走同一条 `_exec`（真执行模块体），
+    #    于是「4 个节点能不能 import」这条也在本模块里被顺带压到。
+    _SPLIT_CLS, _SPLIT_MOD = {}, {}
+    for key, mod_name, cls_name in (
+        ("detect", "node_detect", "QianhuiYoloDetect"),
+        ("sam", "node_sam", "QianhuiSamRefine"),
+        ("repair", "node_repair", "QianhuiRegionRepair"),
+        ("global", "node_global", "QianhuiGlobalPass"),
+    ):
+        mod = _exec("nodes.qianhui_latent_yolo." + mod_name,
+                    os.path.join(LATENT_PKG, mod_name + ".py"))
+        _SPLIT_MOD[key] = mod
+        _SPLIT_CLS[key] = getattr(mod, cls_name)
+
     # ⑤ 重活桩：贴在**类**上（不是实例），4 路输出里就不含任何需要权重/GPU 的东西。
-    _NODE_CLS._detect_with_yolo = _stub_detect_with_yolo
-    _NODE_CLS._detect_single_enhanced = _stub_detect_single_enhanced
-    _NODE_CLS._refine_with_sam = _stub_refine_with_sam
-    _NODE_CLS._extract_hand_skeleton = _stub_extract_hand_skeleton
-    _NODE_CLS._unload_sam_model = _stub_unload_sam_model
-    _NODE_CLS._decode_latent_to_image = _stub_decode_latent_to_image
-    _NODE_CLS._resolve_model_path = _stub_resolve_model_path
-    _NODE_CLS._resolve_sam_model_path = _stub_resolve_sam_model_path
+    #    ★ 单体与拆分侧用**同一套桩函数**（同一个 seed、同一个对象）——
+    #      两侧桩不同的话对拍就是自说自话。
+    for cls in (_NODE_CLS,) + tuple(_SPLIT_CLS.values()):
+        cls._detect_with_yolo = _stub_detect_with_yolo
+        cls._detect_single_enhanced = _stub_detect_single_enhanced
+        cls._refine_with_sam = _stub_refine_with_sam
+        cls._extract_hand_skeleton = _stub_extract_hand_skeleton
+        cls._unload_sam_model = _stub_unload_sam_model
+        cls._decode_latent_to_image = _stub_decode_latent_to_image
+        cls._resolve_model_path = _stub_resolve_model_path
+        cls._resolve_sam_model_path = _stub_resolve_sam_model_path
     model_cache.YOLOModelCache.load_model = _stub_load_model
 
     from test_latent_algorithms import _latent_node_widget_decls
@@ -693,7 +714,52 @@ def run_split(scenario) -> dict:
     （即逐位），`min/max/sum` **只作失败信息里的附注** —— `x.sum()` 是并行归约，
     累加序随 CPU 线程数变，放进断言会「张量逐位相同却整片红」。
     """
-    raise NotImplementedError("T11 填这个：串起 4 个节点，返回与 run_monolith 同形状的 dict")
+    _require_env()
+    inputs = _inputs_for(scenario)
+    _RUN_STATE["no_detect"] = bool(scenario.get("_stub_no_detect", False))
+
+    def _split(cls, overrides):
+        """按该节点 `INPUT_TYPES()` 的声明切输入：**只喂它自己声明的控件**。
+
+        与真 ComfyUI 一致：没声明的控件根本不会出现在它的 `**kwargs` 里
+        （喂了也不会被 `parse_config` 读到本节点该读的那份）。socket 由上游覆盖。
+        """
+        spec = cls.INPUT_TYPES()
+        kwargs = {k: inputs[k] for k in spec["required"] if k in inputs}
+        kwargs.update({k: inputs[k] for k in spec["optional"] if k in inputs})
+        kwargs.update(overrides)
+        return kwargs
+
+    global_mod = _SPLIT_MOD["global"]
+    d = _SPLIT_CLS["detect"]()
+    b = _SPLIT_CLS["sam"]()
+    c = _SPLIT_CLS["repair"]()
+    g = _SPLIT_CLS["global"]()
+
+    captured = []
+    orig_build_info = global_mod.build_info
+
+    def _capture_info(ctx, final_samples):
+        res = orig_build_info(ctx, final_samples)
+        captured.append(list(ctx.all_dets))
+        return res
+
+    global_mod.build_info = _capture_info
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            preview, payload, detect_latent = d.process(**_split(d, {}))
+            (payload,) = b.process(**_split(b, {"检测数据": payload}))
+            repair_latent, mask = c.process(
+                **_split(c, {"检测数据": payload, "Latent": detect_latent}))
+            latent, info = g.process(
+                **_split(g, {"检测数据": payload, "Latent": repair_latent}))
+    finally:
+        global_mod.build_info = orig_build_info
+        _RUN_STATE["stdout"] = buf.getvalue()
+
+    return {"latent": latent["samples"], "preview": preview, "mask": mask,
+            "info": info, "detections": captured[0] if captured else []}
 
 
 def _cached_run(scenario) -> dict:
@@ -1272,11 +1338,20 @@ class TestInfoPerfLines(unittest.TestCase):
 
 
 class TestSplitSide(unittest.TestCase):
-    """T11 打开这一格：拆分后的 4 节点链必须与同一份基准逐位一致。"""
+    """拆分后的 4 节点链必须与同一份基准逐位一致。
 
-    @unittest.skip("T11 填这个：实现 run_split 后摘掉本 skip")
+    ★ 判据与单体侧**共用同一个** `assert_route_matches`（`sha256`/`shape`/`dtype`），
+      不是这里另写一套比较 —— 两侧判据一旦漂移，对拍就成了自说自话。
+    """
+
     def test_split_matches_golden(self):
-        """T11 填这个：`run_split(scenario)` → 与 golden 逐张量比（同 `assert_route_matches`）。"""
+        """4 节点链逐场景跑一遍 → 与 golden 的 4 路 + detections 逐位比。
+
+        比法（与单体侧**共用** `assert_route_matches`，判据 = `sha256`/`shape`/`dtype`）：
+
+          * 路线：`latent` / `preview` / `mask` 逐位；`detections` 走规范化 JSON；
+          * `info` 走 `normalize_info`（R2 的残留：性能行三个数值）。
+        """
         entries = golden_entries(load_golden())["scenarios"]
         for scenario in SCENARIOS:
             with self.subTest(scenario=scenario["name"]):

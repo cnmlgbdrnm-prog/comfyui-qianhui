@@ -1,4 +1,4 @@
-"""SAM 精修方法 Mixin：SAM v1 / SAM 2 / SAM 2.1 加载、分割精修与模型卸载。"""
+"""SAM 精修方法 Mixin：SAM v1 / SAM 2 / SAM 2.1 / SAM 3 加载、分割精修与模型卸载。"""
 import os
 
 import torch
@@ -7,13 +7,82 @@ import comfy.model_management
 from ..model_managers import SAMModelManager
 
 
+#: SAM 3 的图像编码分辨率与默认置信度（`Sam3Processor` 的构造参数）。
+#: ★ 写成模块常量而不是就地字面量：`Sam3Processor` 一旦换默认值，
+#:   就地字面量会让「我们到底用的哪一档」变成一个要读两处才能回答的问题。
+_SAM3_RESOLUTION = 1008
+_SAM3_CONFIDENCE = 0.3
+
+
+class _SAM3BoxPredictor:
+    """把 SAM 3 的 `Sam3Processor` 适配成 SAM1/SAM2 的 predictor 形。
+
+    ## 为什么需要这一层
+
+    下游那段推理循环（本文件 `_refine_with_sam` 里 `self._sam_predictor.predict(
+    box=..., multimask_output=True)`）是 **SAM1 与 SAM2 共用的**，判据是「返回
+    `(masks, scores, _)`」——SAM1 的 `SamPredictor` 与 SAM2 的
+    `SAM2ImagePredictor` 恰好都是这个形状。
+
+    SAM 3 不是：官方接口是
+    `build_sam3_image_model(...)` 造模型 + `Sam3Processor` 维护
+    「`set_image` 得到 state → `add_boxes_prompts` 往 state 上加框提示 →
+    从 state 里取 `masks`/`scores`」的状态机，**没有** `predict(box=...)`。
+    适配层把这点差异关在一个类里，于是下游循环一行都不用改
+    （不改就等于不会把 SAM1/SAM2 那两条路一起改坏）。
+
+    ## 已知边界（★ 如实写下来，别让它看起来比实际更可靠）
+
+    · 这一支**未经真机验证**：本仓的测试环境里没有装 `sam3`，所有 SAM 相关
+      桩函数在 e2e 里都被替换掉了，所以「SAM 3 走通了」这件事没有测试证据。
+      真机第一次用时请核对 `state` 里的键名与掩码形状。
+    · `add_boxes_prompts` 的 state 语义按官方 image API 的用法：每次 `predict`
+      都从**图像级** state 重新贴一个框，不要在两次 `predict` 之间累积提示
+      （accumulate 会让第二个框看到第一个框的后处理结果）。
+    """
+
+    def __init__(self, model, processor):
+        self.model = model
+        self.processor = processor
+        self._image_state = None
+        # 与 SAM1/SAM2 的 predictor 对齐的两个属性：`_unload_sam_model` 会按
+        # `hasattr` 挨个清，这里显式给初值，免得走它那些分支时状态不明。
+        self.features = None
+        self._features = None
+
+    def set_image(self, image_np):
+        self._image_state = self.processor.set_image(image_np)
+
+    def predict(self, box=None, multimask_output=True):
+        """`box` = [x1, y1, x2, y2]（与 SAM1/SAM2 同一口径，像素坐标）。
+
+        返回 `(masks, scores, None)` —— 第三个位置对应 SAM1/SAM2 的
+        `low_res_masks`，下游用 `_` 丢掉，故给 `None`。
+        """
+        import numpy as np
+
+        state = self.processor.add_boxes_prompts([list(box)], [True], self._image_state)
+        masks = state.get("masks", None)
+        scores = state.get("scores", None)
+
+        if masks is None or scores is None or len(masks) == 0:
+            # 空结果走「没检出」那条路（下游对 len(scores) == 0 有分支），
+            # 这里必须给出真数组而不是 None —— 下游会 len() 它。
+            return np.zeros((0, 0, 0), dtype=np.float32), np.zeros((0,), dtype=np.float32), None
+
+        masks = np.asarray(masks)
+        if masks.ndim == 2:                     # 单个掩码 → 补一维，与 SAM1/2 同形
+            masks = masks[None, ...]
+        return masks, np.asarray(scores), None
+
+
 class SamMixin:
     def _refine_with_sam(self, image_np, detections, model_path="", conf_threshold=0.7):
         """
         使用 SAM 精细化分割（V6.8 多版本支持）
 
         将 YOLO 检测框作为 prompt，使用 SAM 生成精确分割 mask
-        支持：SAM v1, SAM 2, SAM 2.1（自动检测版本）
+        支持：SAM v1, SAM 2, SAM 2.1, SAM 3（自动检测版本）
         优化：torch.no_grad加速、set_image复用、模型缓存
 
         Args:
@@ -66,7 +135,68 @@ class SamMixin:
                 model_name = os.path.basename(model_path)
                 print(f"[SAM] 加载模型: {model_name}")
 
-                if sam_version == "sam2":
+                if sam_version == "sam3":
+                    # SAM 3
+                    #
+                    # ★ 依赖与 SAM2 不同：官方包是 `sam3`，接口是
+                    #   `build_sam3_image_model` + `Sam3Processor`（没有
+                    #   `SAM2ImagePredictor` 那种 `predict`）。差异全在
+                    #   `_SAM3BoxPredictor` 适配层里，下面这段只负责造模型。
+                    try:
+                        from sam3.model_builder import build_sam3_image_model
+                        from sam3.model.sam3_image_processor import Sam3Processor
+                    except ImportError:
+                        print("[SAM] sam3 未安装，请安装: pip install git+https://github.com/facebookresearch/sam3.git")
+                        print("[SAM] 或从 https://github.com/facebookresearch/sam3 安装")
+                        return detections
+
+                    try:
+                        print(f"[SAM3] 模型路径: {model_path}")
+
+                        sam = build_sam3_image_model(
+                            device="cuda" if torch.cuda.is_available() else "cpu",
+                            eval_mode=True,
+                            checkpoint_path=model_path,
+                            load_from_HF=False,      # ★ 只用本地权重，不去 HF 拉
+                            enable_segmentation=True,
+                            enable_inst_interactivity=False,
+                            compile=False,           # 编译交给下面的统一分支判断
+                        )
+                        processor = Sam3Processor(
+                            model=sam,
+                            resolution=_SAM3_RESOLUTION,
+                            confidence_threshold=_SAM3_CONFIDENCE,
+                        )
+
+                        # 与 SAM2 分支同一套「稳定模式」取舍：不启用 autocast。
+                        self._sam_use_fp16 = False
+                        if torch.cuda.is_available():
+                            torch.backends.cudnn.benchmark = True
+                            print(f"[SAM3] 使用FP32精度（稳定模式）")
+
+                        self._sam_predictor = _SAM3BoxPredictor(sam, processor)
+                        self._sam_version = "sam3"
+                        print(f"[SAM3] 使用配置: resolution={_SAM3_RESOLUTION}")
+
+                        # ★ SAM 3 这一支**不接** torch.compile：它的图像编码器
+                        #   与 SAM2 不同（多模态骨干），`sam.image_encoder` 这个
+                        #   替换点不保证存在。宁可不编译（慢一点），也不要在这里
+                        #   猜一个属性名 —— 猜错的表现是「装了 SAM3 就崩」。
+                        self._sam_compiled = False
+                        self._sam_compile_mode = "none"
+                        self._sam_original_encoder = None
+                        print(f"[SAM3] 跳过torch.compile（SAM3编码器替换点未验证，用未编译版本）")
+
+                        print(f"[SAM3] 模型加载成功")
+
+                    except Exception as e:
+                        print(f"[SAM3] 加载失败: {e}")
+                        print(f"[SAM3] 请确保:")
+                        print(f"  1. SAM3已正确安装: pip install git+https://github.com/facebookresearch/sam3.git")
+                        print(f"  2. 模型文件完整且未损坏（SAM3 权重需在 HuggingFace 上申请后本地放置）")
+                        return detections
+
+                elif sam_version == "sam2":
                     # SAM 2 / SAM 2.1
                     try:
                         from sam2.build_sam import build_sam2

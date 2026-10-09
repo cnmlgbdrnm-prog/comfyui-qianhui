@@ -8,8 +8,14 @@ from ...model_managers import YOLOModelManager
 from ..context import YoloConfig, YoloRunContext
 
 
-def parse_config(kwargs) -> YoloConfig:
-    """99 个 kwargs 解析结果（源 4135-4288）。字段名 = 原局部变量名。"""
+def parse_config(kwargs, node_key=None) -> YoloConfig:
+    """99 个 kwargs 解析结果（源 4135-4288）。字段名 = 原局部变量名。
+
+    `node_key`（T12）：本调用方的节点短名（`presets.NODE_OF` 的值）。
+    它只影响**预设**那一步 —— 4 个节点各自只有一部分控件，套预设时只能写
+    自己的那些键（理由见 presets.NODE_KEYS 的注释）。99 个 `.get` 一个不动：
+    本节点没声明的控件在这里会拿到与控件默认值相同的默认值，cfg 仍然是满的。
+    """
     cfg = YoloConfig()
 
     # ControlNet
@@ -175,7 +181,8 @@ def parse_config(kwargs) -> YoloConfig:
 
     if apply_preset is not None:
         # 预设名从 kwargs 取，**不是**从 cfg 取（cfg 里没有 `配置预设` 这个字段）。
-        apply_preset(cfg, kwargs.get("配置预设") or NO_PRESET)
+        # T12：node_key 只限定**写哪几个键**，不改这个取值路径。
+        apply_preset(cfg, kwargs.get("配置预设") or NO_PRESET, node_key=node_key)
 
     return cfg
 
