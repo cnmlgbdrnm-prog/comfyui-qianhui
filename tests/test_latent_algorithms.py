@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """LatentAlgorithms 纯函数单测（只依赖 torch/numpy，无需 ComfyUI）。"""
+import ast
+import io
 import os
 import sys
 import unittest
@@ -256,6 +258,122 @@ class TestPackageRelativeImports(unittest.TestCase):
             "相对导入有 %d 处非法（导入期即失败，节点不会注册）:\n%s"
             % (len(broken), "\n".join(broken)),
         )
+
+
+class TestPresets(unittest.TestCase):
+    def _pres(self):
+        return load_module(
+            "qh_presets",
+            os.path.join(pkgs_dir("qianhui_latent_yolo"), "presets.py"),
+        )
+
+    def _cfg(self):
+        """取**真实**的 YoloConfig 实例——不要手搓假对象，理由见上方说明。"""
+        ctx = load_module(
+            "qh_ctx",
+            os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "context.py"),
+        )
+        return ctx.YoloConfig()
+
+    def test_five_presets_defined(self):
+        pres = self._pres()
+        self.assertEqual(
+            sorted(pres.PRESETS.keys()),
+            sorted(["快速模式(低质量)", "平衡模式(推荐)", "质量模式(慢速)",
+                    "极致质量(超慢)", "省显存模式"]),
+        )
+
+    def test_no_preset_is_noop(self):
+        pres = self._pres()
+        cfg = self._cfg()
+        cfg.region_steps = 999
+        pres.apply_preset(cfg, pres.NO_PRESET)
+        self.assertEqual(cfg.region_steps, 999)
+        pres.apply_preset(cfg, pres.CUSTOM)
+        self.assertEqual(cfg.region_steps, 999)
+
+    def test_fast_preset_overrides(self):
+        pres = self._pres()
+        cfg = self._cfg()
+        pres.apply_preset(cfg, "快速模式(低质量)")
+        self.assertEqual(cfg.region_steps, 12)
+        self.assertEqual(cfg.fix_rounds, 1)
+        self.assertFalse(cfg.multi_scale)
+
+    def test_extreme_is_heaviest(self):
+        pres = self._pres()
+        fast = pres.PRESETS["快速模式(低质量)"]
+        extreme = pres.PRESETS["极致质量(超慢)"]
+        self.assertLess(fast["区域步数"], extreme["区域步数"])
+        self.assertLessEqual(fast["修复轮次"], extreme["修复轮次"])
+
+    def test_missing_field_does_not_raise(self):
+        """cfg 缺字段时只覆盖存在的键，不抛异常——且**不能凭空造出新属性**。"""
+        pres = self._pres()
+        cfg = self._cfg()
+        before = set(vars(cfg))
+        pres.apply_preset(cfg, "快速模式(低质量)")
+        # 断言 1：不抛异常（走到这里即成立）
+        # 断言 2：真属性被改了（用真 cfg 才有意义）
+        self.assertEqual(cfg.region_steps, 12)
+        # 断言 3：没有多出预设表之外的属性
+        self.assertTrue(
+            set(vars(cfg)) <= before | set(pres.PRESETS["快速模式(低质量)"]),
+            "apply_preset 造出了配置类里本不存在的属性",
+        )
+
+    def test_every_preset_key_maps_to_a_real_config_field(self):
+        """★ 本组最要紧的一条。
+
+        预设表用的是**控件名**（前端 `x.name === key` 靠它匹配 widgets），
+        而 `apply_preset` 要写的是 **YoloConfig 的字段名**（英文局部名）。
+        两者不是一个键空间。没有这条测试，`FIELD_OF` 里漏一个键
+        就会让那个参数**静默失效**：用户选了预设，控件看着变了，但配置没变。
+        """
+        from dataclasses import fields
+        pres = self._pres()
+        real = {f.name for f in fields(self._cfg())}
+        for name, table in pres.PRESETS.items():
+            for k in table:
+                self.assertIn(k, pres.FIELD_OF, f"预设「{name}」的键 {k} 没有字段映射")
+                self.assertIn(
+                    pres.FIELD_OF[k], real,
+                    f"预设「{name}」的键 {k} 映射到不存在的字段 {pres.FIELD_OF[k]}",
+                )
+        # 反向：FIELD_OF 里的每个字段也必须是真字段（防拼错）
+        for widget_key, field_name in pres.FIELD_OF.items():
+            self.assertIn(field_name, real, f"FIELD_OF['{widget_key}'] 指向不存在的字段")
+
+    def test_parse_config_mounts_preset_from_kwargs_not_cfg(self):
+        """★ 选择路径：预设名必须从 `kwargs` 取，**不能**从 `cfg` 取。
+
+        为什么需要这条：`配置预设` 是控件（`node.py:97`），但 `process()` **从不读它**，
+        所以它**不在** `YoloConfig` 的 99 个字段里 —— 实测 `配置预设` 在
+        `mixins/context.py` 里出现 **0** 次。于是
+        `getattr(cfg, "配置预设", None)` **恒为 None**，`or "[不使用预设]"` 恒取到
+        `NO_PRESET`，`apply_preset` 第一句就 `return`：面板能用、切了没反应、**不报错**。
+
+        上面那几条用例全都**直接**调 `apply_preset(cfg, name)`，跳过了这次查找，
+        所以一条都抓不到它。这条必须静态钉住调用点的实参形态。
+        """
+        src = io.open(
+            os.path.join(pkgs_dir("qianhui_latent_yolo"),
+                         "mixins", "pipeline", "prepare.py"),
+            encoding="utf-8",
+        ).read()
+        calls = [
+            n for n in ast.walk(ast.parse(src))
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name) and n.func.id == "apply_preset"
+        ]
+        self.assertEqual(
+            len(calls), 1,
+            f"prepare.py 里 apply_preset 的调用点应为 1 个，实为 {len(calls)}",
+        )
+        arg = ast.unparse(calls[0].args[1])
+        self.assertIn("kwargs", arg, f"预设名没从 kwargs 取：{arg}")
+        self.assertNotIn("getattr", arg,
+                         f"预设名绕道 cfg 取了，而 cfg 里没有这个字段、恒为 None：{arg}")
 
 
 if __name__ == "__main__":

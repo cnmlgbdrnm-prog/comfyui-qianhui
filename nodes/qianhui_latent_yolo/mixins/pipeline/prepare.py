@@ -154,6 +154,10 @@ def parse_config(kwargs) -> YoloConfig:
     cfg.clarity_strength = float(kwargs.get("清晰度恢复强度", 0.3) or 0.3)
     cfg.use_latent_aware = bool(kwargs.get("使用Latent感知插值", True))
 
+    from ...presets import apply_preset, NO_PRESET
+    # 预设名从 kwargs 取，**不是**从 cfg 取 —— 见下方警告。
+    apply_preset(cfg, kwargs.get("配置预设") or NO_PRESET)
+
     return cfg
 
 

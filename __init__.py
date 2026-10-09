@@ -138,4 +138,16 @@ try:
 except Exception:
     pass
 
+# 8c. 配置预设数据路由（注册失败不影响节点）
+try:
+    from aiohttp import web
+    from server import PromptServer
+    from .nodes.qianhui_latent_yolo.presets import as_payload as preset_payload
+
+    @PromptServer.instance.routes.get("/qianhui_preset_data")
+    async def qianhui_preset_data(request):
+        return web.json_response(preset_payload())
+except Exception:
+    pass
+
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
