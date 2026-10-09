@@ -152,7 +152,7 @@ except Exception as e:
 | `algorithms.py` | `LatentAlgorithms`（10 个 `@staticmethod`） | 104-533 | ~430 |
 | `model_managers.py` | `YOLOModelManager` + `SAMModelManager` | 534-723 | ~190 |
 | `model_cache.py` | `YOLOModelCache` | 724-1159 | ~440 |
-| `controlnet.py` | `ControlNetHelper` + `_extract_hand_skeleton`（手骨架提取，服务于骨架 CN） | 1160-1234 + 1789-1888 | ~180 |
+| `controlnet.py` | `ControlNetHelper` | 1160-1234 | ~80 |
 | `base_node.py` | `LatentKSamplerUpscaler`（仅 `upscale_latent`） | 1266-1283 | ~30 |
 | `node.py` | `QianhuiLatentYOLO` = 6 个 Mixin 聚合 + `INPUT_TYPES` + `__init__` + `RETURN_*` | 1322-1540, 1512-1515 | ~250 |
 | `presets.py` | `配置预设` 预设表 + `apply_preset()`（新增功能） | — | ~80 |
@@ -166,7 +166,7 @@ except Exception as e:
 | `geometry.py` | `_nms_detections_enhanced`(2947)、`_iou_xyxy`(2978)、`_wiou_xyxy`(2993)、`_match_class_name`(3058)、`_filter_detections_by_target`(3069)、`_bbox_area`(3073)、`_bbox_aspect`(3078)、`_assign_lr_group`(3084)、`_filter_detections_geometry`(3090)、`_sort_detections`(3107)、`_limit_detections_per_class`(3114)、`_expand_bbox_xyxy`(3124)、`_merge_overlapping_detections`(3134) | ~250 |
 | `masks.py` | `_create_detection_mask`(3179)、`_calculate_ema_attention`(3260)、`_draw_detection_preview`(3329) | ~220 |
 | `policy.py` | `_resolve_model_path`(3371)、`_resolve_sam_model_path`(3381)、`_parse_target_classes`(3392)、`_auto_params_for_det`(3398)、`_get_preset_class_rules`(3451)、`_parse_class_rules`(3476)、`_match_rule`(3513)、`_get_rule_for_det`(3524)、`_priority_sort_detections`(3539)、`_apply_rule_limits`(3569)、`_build_det_policy`(3592) | ~350 |
-| `inpaint.py` | `_decode_for_detection`(3702)、`_crop_latent`(3722)、`_build_crop_mask`(3740)、`_maybe_apply_controlnet`(3766)、`_gc_if_needed`(3780)、`_encode_hand_foot_prompts`(3818)、`_merge_conditioning`(3834)、`_get_enhanced_conditioning_simple`(3854)、`_prepare_inpaint_latent`(3872)、`_inpaint_sample`(3932)、`_get_crop_inpaint_mask`(4030) | ~440 |
+| `inpaint.py` | `_extract_hand_skeleton`(1789)、`_decode_for_detection`(3702)、`_crop_latent`(3722)、`_build_crop_mask`(3740)、`_maybe_apply_controlnet`(3766)、`_gc_if_needed`(3780)、`_encode_hand_foot_prompts`(3818)、`_merge_conditioning`(3834)、`_get_enhanced_conditioning_simple`(3854)、`_prepare_inpaint_latent`(3872)、`_inpaint_sample`(3932)、`_get_crop_inpaint_mask`(4030) | ~540 |
 | `context.py` | `YoloConfig` + `YoloRunContext`（见 2.4） | 新增 | ~200 |
 
 `mixins/pipeline/` 子包——`process()`（1477 行）按原有语句顺序切成 5 个阶段方法：

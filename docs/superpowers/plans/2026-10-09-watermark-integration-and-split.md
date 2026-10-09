@@ -690,12 +690,12 @@ Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运
 |---|---|---|
 | `model_managers.py` | 534-723（`YOLOModelManager` + `SAMModelManager`） | `glob`/`os`/`folder_paths` |
 | `model_cache.py` | 724-1159（`YOLOModelCache`） | `gc`/`os`/`torch`/`comfy.model_management` |
-| `controlnet.py` | 1160-1234（`ControlNetHelper`）+ 1789-1888（`_extract_hand_skeleton`，**去掉 `self`，改为模块级函数 `extract_hand_skeleton`**） | `os`/`hp`/`torch`/`torch.nn.functional as F`/`numpy as np`/`comfy.controlnet`/`folder_paths` |
+| `controlnet.py` | 1160-1234（`ControlNetHelper`） | `os`/`hp`/`torch`/`torch.nn.functional as F`/`numpy as np`/`comfy.controlnet`/`folder_paths` |
 | `base_node.py` | 1266-1283（仅 `upscale_latent`） | `torch`/`torch.nn.functional as F`/`from .algorithms import LatentAlgorithms` |
 
 **`base_node.py` 只搬 `upscale_latent`**。源 1242-1265 的 `INPUT_TYPES` 与 1284-1317 的 `process` 从未被调用（该基类未注册），不再移植。
 
-`controlnet.py` 的 `_extract_hand_skeleton` 原是实例方法但**不引用 `self`**，改为模块级函数，调用点同步改为 `extract_hand_skeleton(...)`。
+**`_extract_hand_skeleton`（1789-1888）归 `inpaint.py`，保持实例方法原样不动**——它虽不引用 `self`，但唯一调用点在同属精修流程的 5093 行，放同一个 Mixin 可完全避免改造调用点，符合「只改所在文件、不改方法体」的约束。（早期草案曾计划挪到 `controlnet.py` 并改成模块级函数，会违反该约束，已废弃。）
 
 - [ ] **步骤 6：切 6 个 Mixin**
 
@@ -714,7 +714,7 @@ Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运
 | `geometry.py` | `_nms_detections_enhanced`(2947)、`_iou_xyxy`(2978)、`_wiou_xyxy`(2993)、`_match_class_name`(3058)、`_filter_detections_by_target`(3069)、`_bbox_area`(3073)、`_bbox_aspect`(3078)、`_assign_lr_group`(3084)、`_filter_detections_geometry`(3090)、`_sort_detections`(3107)、`_limit_detections_per_class`(3114)、`_expand_bbox_xyxy`(3124)、`_merge_overlapping_detections`(3134) |
 | `masks.py` | `_create_detection_mask`(3179)、`_calculate_ema_attention`(3260)、`_draw_detection_preview`(3329) |
 | `policy.py` | `_resolve_model_path`(3371)、`_resolve_sam_model_path`(3381)、`_parse_target_classes`(3392)、`_auto_params_for_det`(3398)、`_get_preset_class_rules`(3451)、`_parse_class_rules`(3476)、`_match_rule`(3513)、`_get_rule_for_det`(3524)、`_priority_sort_detections`(3539)、`_apply_rule_limits`(3569)、`_build_det_policy`(3592) |
-| `inpaint.py` | `_decode_for_detection`(3702)、`_crop_latent`(3722)、`_build_crop_mask`(3740)、`_maybe_apply_controlnet`(3766)、`_gc_if_needed`(3780)、`_encode_hand_foot_prompts`(3818)、`_merge_conditioning`(3834)、`_get_enhanced_conditioning_simple`(3854)、`_prepare_inpaint_latent`(3872)、`_inpaint_sample`(3932)、`_get_crop_inpaint_mask`(4030) |
+| `inpaint.py` | `_extract_hand_skeleton`(1789)、`_decode_for_detection`(3702)、`_crop_latent`(3722)、`_build_crop_mask`(3740)、`_maybe_apply_controlnet`(3766)、`_gc_if_needed`(3780)、`_encode_hand_foot_prompts`(3818)、`_merge_conditioning`(3834)、`_get_enhanced_conditioning_simple`(3854)、`_prepare_inpaint_latent`(3872)、`_inpaint_sample`(3932)、`_get_crop_inpaint_mask`(4030) |
 
 每个 Mixin 的类名：`DetectionMixin`、`SamMixin`、`GeometryMixin`、`MasksMixin`、`PolicyMixin`、`InpaintMixin`。类体只有方法，**不加 `__init__`**。
 
@@ -746,7 +746,7 @@ import nodes  # ComfyUI 根目录的 nodes.py，取 nodes.KSampler()
 from .algorithms import LatentAlgorithms
 from .model_managers import YOLOModelManager, SAMModelManager
 from .model_cache import YOLOModelCache
-from .controlnet import ControlNetHelper, extract_hand_skeleton
+from .controlnet import ControlNetHelper
 from .base_node import LatentKSamplerUpscaler
 from .mixins.detection import DetectionMixin
 from .mixins.sam import SamMixin
@@ -950,17 +950,14 @@ class YoloConfig:
 @dataclass
 class YoloRunContext:
     cfg: YoloConfig
-    # 以下按步骤 1 扫描出的跨阶段变量逐个补齐
-    yolo_models_to_use: List[str] = field(default_factory=list)
-    yolo_confidences_to_use: List[float] = field(default_factory=list)
-    frames: List[torch.Tensor] = field(default_factory=list)
-    previews: List[torch.Tensor] = field(default_factory=list)
-    masks: List[torch.Tensor] = field(default_factory=list)
-    info_lines: List[str] = field(default_factory=list)
-    frame_history: List[torch.Tensor] = field(default_factory=list)
-    perf_start_time: Optional[float] = None
-    batch_size: int = 0
-    pbar: Any = None
+    # 字段集**完全由步骤 1 的扫描输出决定**，不要预列：
+    #   扫描输出里「前段定义、后段读取」的每个变量名 → 一个 ctx 字段
+    #   扫描输出里没有的名字 → 不得出现（否则是死字段，审查会打回）
+    # 参考类型映射：tensor 列表用 List[torch.Tensor] + field(default_factory=list)，
+    #   标量用 Optional[...] = None 或 0 / 0.0，进度条等外部对象用 Any = None。
+```
+
+**不要照抄任何"看起来合理"的字段名**——例如 `frames`、`previews`、`masks` 这类名字是早期草案的猜测，源码里的真实变量名以扫描输出为准（很可能是 `out_latents`、`frame_previews`、`frame_masks` 之类）。字段名必须与源码局部变量名逐字一致，否则机械替换会全线断掉。
 ```
 
 - [ ] **步骤 3：用脚本生成 `YoloConfig` 的 99 个字段并粘贴**
