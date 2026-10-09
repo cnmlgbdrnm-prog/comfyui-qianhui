@@ -569,7 +569,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `nodes.qianhui_latent_yolo` 包（Task 1 建）
 - Produces:
   - `__init__.py` 导出 `QianhuiLatentYOLO` + `NODE_*_MAPPINGS`
-  - `algorithms.py`：`LatentAlgorithms`，含 10 个 `@staticmethod`（`latent_aware_resize`、`_mild_sharpen`、`gaussian_feather`、`frequency_aware_color_match`、`simple_color_match`、`smart_soft_blend`、`poisson_blend_latent`、`mpb_blend_latent`、`simple_blend`）。**该文件不得有包内相对导入**（供单测直载）。
+  - `algorithms.py`：`LatentAlgorithms`，含 9 个 `@staticmethod`（`latent_aware_resize`、`_mild_sharpen`、`gaussian_feather`、`frequency_aware_color_match`、`simple_color_match`、`smart_soft_blend`、`poisson_blend_latent`、`mpb_blend_latent`、`simple_blend`）。**该文件不得有包内相对导入**（供单测直载）。
   - `model_managers.py`：`YOLOModelManager`、`SAMModelManager`
   - `model_cache.py`：`YOLOModelCache(max_cached_models=3, vram_threshold_mb=500)`
   - `controlnet.py`：`ControlNetHelper`、`extract_hand_skeleton(image_np, bbox, target_h, target_w)`
@@ -705,7 +705,9 @@ import torch
 import torch.nn.functional as F
 ```
 
-搬完后运行 `python -X utf8 -c "import ast,io; ast.parse(io.open('nodes/qianhui_latent_yolo/algorithms.py',encoding='utf-8').read())"` 确认语法。若 `LatentAlgorithms` 用到未列出的符号（如 `gc`），补上对应 import——**判据是文件里出现的名字，不是猜测**。
+搬完后运行 `python -X utf8 -c "import ast,io; ast.parse(io.open('nodes/qianhui_latent_yolo/algorithms.py',encoding='utf-8').read())"` 确认语法。
+
+**这 9 个 `@staticmethod` 是本任务的第一风险点**（源 112/152/169/215/279/323/421/474/519，全部紧贴各自 `def` 的上一行）。虽然整类 104-533 连装饰器一起搬，但若中途手抄丢了装饰器，`tests/test_latent_algorithms.py` 会以 `TypeError: latent_aware_resize() missing 1 required positional argument` 的形式报出来——**看到这个错就是装饰器丢了，去补，不要改测试**。若 `LatentAlgorithms` 用到未列出的符号（如 `gc`），补上对应 import——**判据是文件里出现的名字，不是猜测**。
 
 - [ ] **步骤 4：跑测试，确认通过**
 
