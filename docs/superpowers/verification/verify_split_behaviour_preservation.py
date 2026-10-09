@@ -27,7 +27,7 @@
 ## 两套对拍
 
 1. **函数级**：源里每个函数与新版按名配对，施加计划批准的**三种机械改写**后逐字节比对。
-2. **语句级**：源 `process()` 的叶子语句，与新版承接它的那 8 个函数，作为**多重集**比对。
+2. **语句级**：源 `process()` 的叶子语句，与新版承接它的那 11 个函数（`PROCESS_SPLIT_TARGETS` 所列），作为**多重集**比对。
 
 ## 术语与判据（写死在此，避免口径漂移）
 
@@ -73,10 +73,13 @@ REPO_ROOT = os.path.abspath(os.path.join(_HERE, os.pardir, os.pardir, os.pardir)
 NEW_PACKAGE = os.path.join(REPO_ROOT, "nodes", "qianhui_latent_yolo")
 REPORT_FILE = os.path.join(_HERE, "behaviour-preservation-report.txt")
 
-#: 源 `process()` 被拆进这 8 个函数。
-#: 这 8 个 = `node.py` 的 `process()` 实际调用的那些函数（读 node.py:239-253 得到），
+#: 源 `process()` 被拆进这 11 个函数。
+#: 前 8 个 = `node.py` 的 `process()` 实际调用的那些函数（读 node.py:239-253 得到），
 #: 不是猜的：prepare_run → run_detection → run_repair → run_global_pass
 #: → (finalize_interrupt | build_report)；parse_config 由 prepare_run 调用。
+#: 后 3 个（T3 新增）= `report_bits.py` 的 build_preview / build_masks / build_info ——
+#: 它们是从 build_report 里再拆出来的**子段**，`process()` 并不直接调用；但源
+#: `process()` 里对应的语句现在由它们承接，不列进来就会把搬走的语句误判成源侧丢失。
 PROCESS_SPLIT_TARGETS = (
     ("node.py", "process"),
     ("mixins/pipeline/prepare.py", "parse_config"),
@@ -86,6 +89,9 @@ PROCESS_SPLIT_TARGETS = (
     ("mixins/pipeline/global_pass.py", "run_global_pass"),
     ("mixins/pipeline/report.py", "finalize_interrupt"),
     ("mixins/pipeline/report.py", "build_report"),
+    ("mixins/pipeline/report_bits.py", "build_preview"),
+    ("mixins/pipeline/report_bits.py", "build_masks"),
+    ("mixins/pipeline/report_bits.py", "build_info"),
 )
 
 #: 三种获批改写。
@@ -476,7 +482,10 @@ def main():
 
     # ---------------- §3 语句级 ----------------
     emit("-" * 78)
-    emit("§3 语句级：源 process() 的叶子语句 vs 承接它的 8 个函数")
+    # 数字**不写死**：T13 删 prepare_run 后会变 10，T4/T12 也可能增减。
+    # 这是打印给用户看的输出，写死就会在某次改动后印出一个错的数。
+    emit("§3 语句级：源 process() 的叶子语句 vs 承接它的 %d 个函数"
+         % len(PROCESS_SPLIT_TARGETS))
     emit("-" * 78)
     src_proc, src_text, n_same = find_function(SOURCE_FILE, "process")
     emit("源 process()：同名 %d 个，取最大者 @line %d-%d（%d 行）= 主节点"

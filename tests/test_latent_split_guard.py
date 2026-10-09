@@ -150,7 +150,8 @@ class TestSlots(unittest.TestCase):
 #   各阶段模块的才是「读」。不区分的话两个方向会算成一个。
 
 PIPELINE_DIR = os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "pipeline")
-STAGE_MODULES = ("prepare.py", "detect.py", "repair.py", "global_pass.py", "report.py")
+STAGE_MODULES = ("prepare.py", "detect.py", "repair.py",
+                 "global_pass.py", "report.py", "report_bits.py")
 
 # 6 个冻结计数 (reads, writes)。
 #
@@ -169,7 +170,14 @@ EXPECTED_CFG_ACCESS = {
     "detect.py": (37, 0),
     "repair.py": (48, 0),
     "global_pass.py": (7, 0),
-    "report.py": (6, 0),
+    # T3：6 个 cfg 读取（work_mode / blend_mode / use_latent_aware / enable_yolo /
+    # enable_crop / enable_profiling）随「预览 / 遮罩 / 检测信息」三段搬进了
+    # report_bits.py，故 report.py 只剩 finalize_interrupt 里的 use_latent_aware。
+    # 整条管道的读取一个没少、只是换了文件 —— 非行为性迁移，在此同步期望值。
+    "report.py": (1, 0),
+    # T3 新增：不登记的话新文件完全没守卫看着。
+    # （并集仍覆盖全部字段，故用例 2/3 不受影响，只有本条需要更新。）
+    "report_bits.py": (6, 0),
 }
 
 # 有控件、但没有对应 YoloConfig 字段的 14 个名字（13 个必填 socket/参数 + 配置预设）。
@@ -396,7 +404,7 @@ class TestCfgReadClosure(unittest.TestCase):
         )
 
     def test_every_read_field_is_a_declared_config_field(self):
-        """5 个阶段读到的字段都必须真在 YoloConfig 里 —— 这是**拼写错**的网。
+        """6 个阶段读到的字段都必须真在 YoloConfig 里 —— 这是**拼写错**的网。
 
         `ctx.cfg.confidnce` 这类错字在带 `slots=True` 的类上会在运行期抛
         AttributeError，但只在该分支被走到时才炸；静态这里当场红。
