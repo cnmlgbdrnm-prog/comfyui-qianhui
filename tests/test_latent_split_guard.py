@@ -153,6 +153,12 @@ PIPELINE_DIR = os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "pipeline
 STAGE_MODULES = ("prepare.py", "detect.py", "repair.py", "global_pass.py", "report.py")
 
 # 6 个冻结计数 (reads, writes)。
+#
+# ★ 口径：数的是**去重后的字段名个数**（`{字段名}` 的 len），**不是** AST 访问点个数。
+#   两者的差别很大 —— 例如 repair.py 磁盘上有 114 处 cfg 读取，但只有 48 个不同的字段名。
+#   所以「删掉一处重复读取」这类改动**不会**让这里变红（那是刻意的：重复读取的增减
+#   不改变字段归属，而字段归属才是本文件要护的东西）。
+#
 # ★ 改动这些数字**必须在同一个提交里说明为什么** —— 它们不是「待填的期望值」，
 #   而是反空转的绊线：某个阶段模块被改名/搬走时并集变小，用例 2/3 会因为
 #   「并集 ⊆ 字段」而**空转通过**，只有这里会让「读到 0 个」当场变红。
@@ -176,12 +182,131 @@ WIDGETS_WITHOUT_CONFIG_FIELD = frozenset((
     "降噪", "采样器", "调度器", "放大倍数", "放大算法", "配置预设",
 ))
 
+# 99 条「字段 ↔ 控件」配对快照，从 _context_key_map() 的当前输出生成（按字段名排序）。
+#
+# 这 99 条配对是 hand-written 的（context.py 里每个字段旁的 `# 键:` 注释），今天没有任何
+# 自动化手段能判断「结果缓存设备」是否**语义上**就是 cache_device_mode —— 所以这里钉住的
+# 是**当前这份配对**，不是它的正确性。它是绊线：改动必须写理由
+# （改字段名/控件名/新增字段是正当的；**成对交换两处注释**是事故）。
+# ★ 不要声称它证明了配对是对的。它证明的是「配对没有变」。
+#
+# 为什么需要它（复审 C-1）：用例 4 只断言**键集合**相等、用例 5 只断言**值集合** ⊆ 控件表
+# 且互不重复。成对交换两处 `# 键:` 注释时这三个不变量全部保持、三条断言全绿 ——
+# 而 _context_key_map() 正是 T8~T11 把字段翻成控件的唯一来源，交换后 4 个节点会把旋钮
+# 挂到错误的字段上（改 A 旋钮、B 字段变），全量测试一条都不红。本条断言填的就是那个洞。
+CONTEXT_KEY_SNAPSHOT = {
+    "CN图像": "CN图像",
+    "CN开始": "CN开始",
+    "CN强度": "CN强度",
+    "CN模型": "CN模型",
+    "CN结束": "CN结束",
+    "adaptive_dn": "按置信度自适应降噪",
+    "attention_focus": "注意力聚焦强度",
+    "bbox_expand2_px": "合并后二次扩张像素",
+    "bbox_expand2_ratio": "合并后二次扩张比例",
+    "blend_mode": "融合模式",
+    "cache_device_mode": "结果缓存设备",
+    "clarity_strength": "清晰度恢复强度",
+    "class_rules_preset": "类别规则预设",
+    "class_rules_text": "类别规则",
+    "clear_each": "每帧清理缓存",
+    "color_strength": "色差修复强度",
+    "conf_high_scale": "自适应降噪_高置信缩放",
+    "conf_low_scale": "自适应降噪_低置信缩放",
+    "confidence": "置信度",
+    "confidence2": "YOLO模型2置信度",
+    "confidence3": "YOLO模型3置信度",
+    "confidence4": "YOLO模型4置信度",
+    "crop_cfg": "裁剪CFG",
+    "crop_denoise": "裁剪降噪",
+    "crop_max_edge": "裁剪最大边",
+    "crop_pad": "裁剪扩展",
+    "crop_rounds": "裁剪轮次",
+    "crop_steps": "裁剪步数",
+    "crop_upscale": "裁剪放大倍率",
+    "crop_use_cn": "裁剪使用ControlNet",
+    "custom_priority": "自定义优先级关键词",
+    "decay": "逐次降噪递减",
+    "enable_crop": "开启裁剪精修",
+    "enable_ema_attention": "启用EMA注意力",
+    "enable_multi_model": "启用多模型",
+    "enable_profiling": "启用性能分析",
+    "enable_sam": "启用SAM精细化",
+    "enable_yolo": "启用YOLO",
+    "expand": "遮罩扩展",
+    "feather": "遮罩羽化",
+    "final_denoise_strength": "全图降噪强度",
+    "fix_rounds": "修复轮次",
+    "frame_window": "参考帧窗口",
+    "hand_foot_cfg_boost": "手脚CFG加成",
+    "hand_foot_cn_strength": "手脚CN强度",
+    "hand_foot_denoise": "手脚降噪下限",
+    "hand_foot_denoise_decay": "手脚降噪衰减",
+    "hand_foot_denoise_min": "手脚衰减下限",
+    "hand_foot_enhance": "手脚增强模式",
+    "hand_foot_extra_rounds": "手脚额外轮次",
+    "hand_skeleton_cn_model": "手骨架CN模型",
+    "inference_precision": "推理精度",
+    "low_vram": "低显存模式",
+    "lr_protect": "左右分组保护",
+    "manual_path": "YOLO路径",
+    "max_area_ratio": "过滤最大面积比",
+    "max_aspect": "过滤最大长宽比",
+    "max_targets": "最多目标数",
+    "merge_boxes": "合并重叠框",
+    "merge_iou": "合并IOU阈值",
+    "merge_same_class": "合并仅同类",
+    "min_area_ratio": "过滤最小面积比",
+    "min_aspect": "过滤最小长宽比",
+    "mpb_color_preserve": "MPB颜色保持",
+    "multi_scale": "多尺度检测",
+    "no_detect_mode": "未检测时处理",
+    "per_class_limit": "每类最多目标数",
+    "poisson_iters": "Poisson迭代次数",
+    "priority_mode": "修复优先级",
+    "refine_det": "二次检测精修",
+    "refine_max": "二次检测最多目标",
+    "refine_pad": "二次检测扩展",
+    "region_cfg": "区域CFG",
+    "region_denoise": "区域降噪",
+    "region_steps": "区域步数",
+    "sam_conf_threshold": "SAM置信度阈值",
+    "sam_model_manual": "SAM模型手动路径",
+    "sam_model_selection": "SAM模型选择",
+    "seg_feather": "Seg边缘羽化",
+    "skeleton_cn_end": "骨架CN结束",
+    "skeleton_cn_strength": "骨架CN强度",
+    "smart_strategy": "智能策略",
+    "sort_mode": "排序方式",
+    "target_classes_str": "目标类别",
+    "temporal_strength": "时序一致性强度",
+    "tile_enabled": "启用Tile检测",
+    "tile_overlap": "Tile重叠",
+    "tile_size": "Tile大小",
+    "use_latent_aware": "使用Latent感知插值",
+    "use_seg": "使用Seg分割",
+    "use_wiou": "使用WIoU优化",
+    "video_mode": "视频模式",
+    "wiou_alpha": "WIoU权重参数",
+    "work_mode": "工作模式",
+    "yolo_imgsz": "YOLO推理尺寸",
+    "yolo_model2": "YOLO模型2",
+    "yolo_model3": "YOLO模型3",
+    "yolo_model4": "YOLO模型4",
+    "yolo_model_selection": "YOLO模型",
+}
+
 
 def _cfg_access(module_path):
     """AST 取一个模块里对 cfg 字段的访问，拆成 (reads, writes) 两个 set。
 
     只认两种基底：`cfg.<字段>`（prepare.py 的形参）与 `ctx.cfg.<字段>`（各阶段
     从上下文取）。两者之外的一律不算 —— 免得把 `foo.cfg` 之类误收进来。
+
+    ★ 第二条基底必须**连基底对象一起认**（`... and base.value.id == "ctx"`）：
+    只写 `base.attr == "cfg"` 会把 `self.cfg.x` / `payload.cfg.x` / `node.cfg.x`
+    一并收进来 —— 那些与 cfg 读取无关的写法会造出指名 Fake 字段的**假红**，
+    还会顶翻用例 7 的冻结计数，逼人为了无关改动去动绊线数字。
     """
     with io.open(module_path, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
@@ -191,7 +316,12 @@ def _cfg_access(module_path):
             continue
         base = node.value
         is_bare_cfg = isinstance(base, ast.Name) and base.id == "cfg"
-        is_ctx_cfg = isinstance(base, ast.Attribute) and base.attr == "cfg"
+        is_ctx_cfg = (
+            isinstance(base, ast.Attribute)
+            and base.attr == "cfg"
+            and isinstance(base.value, ast.Name)
+            and base.value.id == "ctx"
+        )
         if not (is_bare_cfg or is_ctx_cfg):
             continue
         (reads if isinstance(node.ctx, ast.Load) else writes).add(node.attr)
@@ -233,8 +363,13 @@ class TestCfgReadClosure(unittest.TestCase):
     拆成 4 个节点之前先把网建好：拆完之后每个节点的控件表要跟这张网对账，
     否则「某个旋钮在界面上消失」不会有任何测试变红，只能靠肉眼看出来。
 
-    前 5 条不碰 node.py，拆完之后依然成立；后 2 条依赖 node.py，T13 删单体时
-    预期要跟着改，所以刻意分成独立方法、不揉成一条。
+    依赖关系（复审 C-3 订正，别再照旧说法传下去）：
+      - 用例 1~4、7 **不碰 node.py**；
+      - 用例 5（`_latent_node_widget_decls()`）与用例 6（同上）**依赖 node.py**，
+        T13 删单体时预期要跟着改；
+      - 用例 7 依赖的是 `STAGE_MODULES` 的计数，与 node.py 无关，
+        T4/T12/T13 改阶段读取逻辑时预期要跟着改。
+    刻意分成独立方法、不揉成一条，就是为了让 T13 能按条改。
     """
 
     def test_every_config_field_is_written_by_parse_config(self):
@@ -323,6 +458,36 @@ class TestCfgReadClosure(unittest.TestCase):
             f"{sorted(set(mapped) - set(widgets))}",
         )
         self.assertEqual(dupes, [], f"多个字段映射到同一个控件名：{dupes}")
+
+    def test_context_key_pairing_is_pinned(self):
+        """★ 绊线：99 条「字段 ↔ 控件」配对逐条钉死（不止键集合与值集合）。
+
+        用例 4 只断言**键集合**相等，用例 5 只断言**值集合** ⊆ 控件表且互不重复。
+        **成对交换两处 `# 键:` 注释**时，这三个不变量全部保持，那三条断言全绿 ——
+        而 `_context_key_map()` 正是 T8~T11 把字段翻成控件的唯一来源，交换后
+        4 个节点会把旋钮挂到错误的字段上（改 A 旋钮、B 字段变），全量测试一条都不红。
+        本条断言填的就是那个洞（复审 C-1）。
+
+        ★ 它钉住的是**当前这份配对**，不是它的正确性：这 99 条注释是 hand-written 的，
+        今天没有任何自动化手段能判断「结果缓存设备」是否**语义上**就是
+        `cache_device_mode`。它证明的是「配对没有变」，不是「配对是对的」。
+
+        实测另有一条路**走不通**（别去试）：context.py 按功能分组、node.py 把 CN 系
+        放在 optional 靠后，所以「按声明顺序一一对应」这条结构判据不成立。
+        """
+        actual = _context_key_map()
+        self.assertEqual(
+            actual,
+            CONTEXT_KEY_SNAPSHOT,
+            "字段 ↔ 控件 的配对变了。逐类诊断：\n"
+            f"  快照里有、代码里没有：{sorted(set(CONTEXT_KEY_SNAPSHOT) - set(actual))}\n"
+            f"  代码里有、快照里没有：{sorted(set(actual) - set(CONTEXT_KEY_SNAPSHOT))}\n"
+            f"  两侧都在但控件名不同（配对被换）："
+            f"{sorted(k for k in set(actual) & set(CONTEXT_KEY_SNAPSHOT) if actual[k] != CONTEXT_KEY_SNAPSHOT[k])}\n"
+            "★ 若是有意改动（改字段名/控件名、新增字段），在**同一个提交**里说明为什么\n"
+            "  并同步 CONTEXT_KEY_SNAPSHOT；若是成对交换了两处 `# 键:` 注释 —— 那是事故，\n"
+            "  拆出来的节点会把旋钮挂到错误的字段上。",
+        )
 
     def test_widgets_without_a_config_field_are_exactly_the_known_set(self):
         """★ 故意的绊线：没有 cfg 字段的控件**精确等于**那 14 个已知名字。
