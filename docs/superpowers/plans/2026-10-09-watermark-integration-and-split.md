@@ -1185,7 +1185,6 @@ class YoloRunContext:
 ```
 
 **不要照抄任何"看起来合理"的字段名**——例如 `frames`、`previews`、`masks` 这类名字是早期草案的猜测，源码里的真实变量名以扫描输出为准（很可能是 `out_latents`、`frame_previews`、`frame_masks` 之类）。字段名必须与源码局部变量名逐字一致，否则机械替换会全线断掉。
-```
 
 - [ ] **步骤 3：用脚本生成 `YoloConfig` 的 99 个字段并粘贴**
 
@@ -1351,18 +1350,31 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 在 `tests/test_latent_algorithms.py` 末尾追加：
 
+> ⚠️ **必须用真实的 `YoloConfig` 实例，不要手搓假的。**
+> 早期版本的用例写成 `cfg = type("C", (), {})()`，然后 `for k in PRESETS[...]: setattr(cfg, k, None)`
+> —— 它先把预设表的键当成 cfg 的属性塞进去，再断言这些属性被写成预设值。
+> 于是**键名写错也照样通过**：表里写中文键、真字段是英文，`setattr` 落在一个临时
+> 假对象上，断言当然成立。这个用例的价值全在「用真货」，手搓 cfg 等于把它废掉。
+> 下面 `_cfg()` 从 `mixins/context.py` 取真 `YoloConfig`。
+
 ```python
 class TestPresets(unittest.TestCase):
-    def _cfg(self):
-        from dataclasses import fields
-        pres = load_module(
+    def _pres(self):
+        return load_module(
             "qh_presets",
             os.path.join(pkgs_dir("qianhui_latent_yolo"), "presets.py"),
         )
-        return pres
+
+    def _cfg(self):
+        """取**真实**的 YoloConfig 实例——不要手搓假对象，理由见上方说明。"""
+        ctx = load_module(
+            "qh_ctx",
+            os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "context.py"),
+        )
+        return ctx.YoloConfig()
 
     def test_five_presets_defined(self):
-        pres = self._cfg()
+        pres = self._pres()
         self.assertEqual(
             sorted(pres.PRESETS.keys()),
             sorted(["快速模式(低质量)", "平衡模式(推荐)", "质量模式(慢速)",
@@ -1370,36 +1382,65 @@ class TestPresets(unittest.TestCase):
         )
 
     def test_no_preset_is_noop(self):
-        pres = self._cfg()
-        cfg = type("C", (), {})()
-        cfg.区域步数 = 999
+        pres = self._pres()
+        cfg = self._cfg()
+        cfg.region_steps = 999
         pres.apply_preset(cfg, pres.NO_PRESET)
-        self.assertEqual(cfg.区域步数, 999)
+        self.assertEqual(cfg.region_steps, 999)
         pres.apply_preset(cfg, pres.CUSTOM)
-        self.assertEqual(cfg.区域步数, 999)
+        self.assertEqual(cfg.region_steps, 999)
 
     def test_fast_preset_overrides(self):
-        pres = self._cfg()
-        cfg = type("C", (), {})()
-        for k in pres.PRESETS["快速模式(低质量)"]:
-            setattr(cfg, k, None)
+        pres = self._pres()
+        cfg = self._cfg()
         pres.apply_preset(cfg, "快速模式(低质量)")
-        self.assertEqual(cfg.区域步数, 12)
-        self.assertEqual(cfg.修复轮次, 1)
-        self.assertFalse(cfg.多尺度检测)
+        self.assertEqual(cfg.region_steps, 12)
+        self.assertEqual(cfg.fix_rounds, 1)
+        self.assertFalse(cfg.multi_scale)
 
     def test_extreme_is_heaviest(self):
-        pres = self._cfg()
+        pres = self._pres()
         fast = pres.PRESETS["快速模式(低质量)"]
         extreme = pres.PRESETS["极致质量(超慢)"]
         self.assertLess(fast["区域步数"], extreme["区域步数"])
         self.assertLessEqual(fast["修复轮次"], extreme["修复轮次"])
 
     def test_missing_field_does_not_raise(self):
-        """cfg 缺字段时只覆盖存在的键，不抛异常"""
-        pres = self._cfg()
-        cfg = type("C", (), {})()
+        """cfg 缺字段时只覆盖存在的键，不抛异常——且**不能凭空造出新属性**。"""
+        pres = self._pres()
+        cfg = self._cfg()
+        before = set(vars(cfg))
         pres.apply_preset(cfg, "快速模式(低质量)")
+        # 断言 1：不抛异常（走到这里即成立）
+        # 断言 2：真属性被改了（用真 cfg 才有意义）
+        self.assertEqual(cfg.region_steps, 12)
+        # 断言 3：没有多出预设表之外的属性
+        self.assertTrue(
+            set(vars(cfg)) <= before | set(pres.PRESETS["快速模式(低质量)"]),
+            "apply_preset 造出了配置类里本不存在的属性",
+        )
+
+    def test_every_preset_key_maps_to_a_real_config_field(self):
+        """★ 本组最要紧的一条。
+
+        预设表用的是**控件名**（前端 `x.name === key` 靠它匹配 widgets），
+        而 `apply_preset` 要写的是 **YoloConfig 的字段名**（英文局部名）。
+        两者不是一个键空间。没有这条测试，`FIELD_OF` 里漏一个键
+        就会让那个参数**静默失效**：用户选了预设，控件看着变了，但配置没变。
+        """
+        from dataclasses import fields
+        pres = self._pres()
+        real = {f.name for f in fields(self._cfg())}
+        for name, table in pres.PRESETS.items():
+            for k in table:
+                self.assertIn(k, pres.FIELD_OF, f"预设「{name}」的键 {k} 没有字段映射")
+                self.assertIn(
+                    pres.FIELD_OF[k], real,
+                    f"预设「{name}」的键 {k} 映射到不存在的字段 {pres.FIELD_OF[k]}",
+                )
+        # 反向：FIELD_OF 里的每个字段也必须是真字段（防拼错）
+        for widget_key, field_name in pres.FIELD_OF.items():
+            self.assertIn(field_name, real, f"FIELD_OF['{widget_key}'] 指向不存在的字段")
 ```
 
 - [ ] **步骤 2：跑测试，确认失败**
@@ -1409,14 +1450,54 @@ Expected: FAIL——`FileNotFoundError`（`presets.py` 未创建）。
 
 - [ ] **步骤 3：写 `presets.py`**
 
+> ⚠️ **这张表要同时服务两个键空间，这是本任务唯一的真陷阱。**
+>
+> - **前端**（`js/latent_yolo_presets.js`）用 `node.widgets.find(x => x.name === key)` 匹配，
+>   所以表的键必须是**控件名**（中文：`区域步数`、`低显存模式` …）。
+> - **后端**（`apply_preset`）要 `setattr(cfg, ...)`，而 `YoloConfig` 的字段是
+>   **英文局部名**（`region_steps`、`low_vram` …，见 Task 4 步骤 3 生成器的 `# 键:` 注释）。
+>
+> 所以表的键**保持控件名**（前端那半边是对的），另加一张 `FIELD_OF` 映射表把控件名翻成字段名。
+> 早期版本的 `apply_preset` 直接 `if hasattr(cfg, key): setattr(...)` —— 19 个键**一个都匹配不到**，
+> 全部静默跳过：用户选了「极致质量(超慢)」，控件显示变了，配置纹丝不动。
+> `hasattr` 兜底在这里不是稳健，是把错误藏起来。**改成查不到映射就抛异常。**
+
 ```python
 """配置预设表（后端唯一来源，前端 JS 通过 /qianhui_preset_data 拉取）。
 
 覆盖 19 个参数 × 5 档。不纳入预设的参数表达用户意图，见设计文档 2.6。
+
+★ 键空间说明：`PRESETS` 的键是**控件名**（前端按控件名找 widget），
+  `apply_preset` 通过 `FIELD_OF` 翻成 `YoloConfig` 的**字段名**再写入。
+  新增预设项时**两处都要动**，`test_every_preset_key_maps_to_a_real_config_field` 会拦住漏改。
 """
 
 NO_PRESET = "[不使用预设]"
 CUSTOM = "自定义"
+
+# 控件名 -> YoloConfig 字段名。
+# 由 Task 4 步骤 3 的生成器输出逐个核对得来（`# 键: xxx` 那列），不是手写的。
+FIELD_OF = {
+    "多尺度检测": "multi_scale",
+    "启用Tile检测": "tile_enabled",
+    "YOLO推理尺寸": "yolo_imgsz",
+    "使用Seg分割": "use_seg",
+    "启用SAM精细化": "enable_sam",
+    "启用EMA注意力": "enable_ema_attention",
+    "二次检测精修": "refine_det",
+    "开启裁剪精修": "enable_crop",
+    "裁剪最大边": "crop_max_edge",
+    "裁剪步数": "crop_steps",
+    "裁剪降噪": "crop_denoise",
+    "裁剪轮次": "crop_rounds",
+    "区域步数": "region_steps",
+    "区域降噪": "region_denoise",
+    "修复轮次": "fix_rounds",
+    "融合模式": "blend_mode",
+    "低显存模式": "low_vram",
+    "每帧清理缓存": "clear_each",
+    "结果缓存设备": "cache_device_mode",
+}
 
 PRESETS = {
     "快速模式(低质量)": {
@@ -1477,7 +1558,9 @@ PRESET_LABELS = [NO_PRESET] + list(PRESETS.keys()) + [CUSTOM]
 def apply_preset(cfg, name: str) -> None:
     """按预设定名就地覆盖 cfg 字段。
 
-    NO_PRESET 与 CUSTOM 均为「不覆盖」；cfg 缺字段时静默跳过该键。
+    NO_PRESET 与 CUSTOM 均为「不覆盖」。
+    表里出现 `FIELD_OF` 没有的键时**抛 KeyError**，不静默跳过——
+    静默跳过会让「预设没生效」变成只有用户能发现的症状。
     """
     if not name or name in (NO_PRESET, CUSTOM):
         return
@@ -1485,19 +1568,26 @@ def apply_preset(cfg, name: str) -> None:
     if not table:
         return
     for key, value in table.items():
-        if hasattr(cfg, key):
-            setattr(cfg, key, value)
+        field_name = FIELD_OF.get(key)
+        if field_name is None:
+            raise KeyError(
+                f"预设「{name}」的键 {key!r} 不在 FIELD_OF 里；"
+                f"新增预设项时必须同时补 FIELD_OF（控件名 -> YoloConfig 字段名）"
+            )
+        setattr(cfg, field_name, value)
 
 
 def as_payload() -> dict:
-    """供 /qianhui_preset_data 路由返回。"""
+    """供 /qianhui_preset_data 路由返回。**只给前端控件名**，不带 FIELD_OF。"""
     return {"presets": PRESETS, "labels": PRESET_LABELS}
 ```
 
 - [ ] **步骤 4：跑测试，确认通过**
 
 Run: `python -X utf8 tests/test_latent_algorithms.py`
-Expected: `OK`，17 个用例全过（原 12 + 预设 5）。
+Expected: `OK`，**17 个用例**全过（原有 **11** + 本次新增 **6**）。
+
+> 早期版本写「原 12 + 预设 5」——两处都不对：`tests/test_latent_algorithms.py` 里原有 **11** 个（不是 12），本次新增的是 **6** 个（不是 5）。17 这个总数碰巧是对的，但拆分写错了，后面加用例时别按错的基数推。
 
 - [ ] **步骤 5：在 `parse_config` 末尾接上预设**
 
@@ -1623,14 +1713,18 @@ except Exception:
 
 - [ ] **步骤 10：用户验证两条生效路径**
 
-浏览器路径：重启 ComfyUI，在 `千绘 · Latent智能修复` 节点上把 `配置预设` 从 `[不使用预设]` 切到 `快速模式(低质量)`，确认 `区域步数` 控件显示值从 20 变为 12（**看得见**）。
+浏览器路径：重启 ComfyUI，在 `千绘 · Latent智能修复` 节点上把 `配置预设` 从 `[不使用预设]` 切到 `快速模式(低质量)`，确认 `区域步数` 控件显示值从 **0** 变为 **12**（**看得见**）。
+
+> 注意默认值是 **0**（`INPUT_TYPES` 实测），不是 20 —— 早期版本这里写错了。0 是「不覆盖」的哨兵值，所以这个控件从 0 变 12 是最直观的验证点。
 
 API 路径：用 `[不使用预设]` 存一份工作流，改为 `快速模式(低质量)` 后用 API 格式提交（或脚本调用），确认后端生效——即运行日志/`检测信息` 反映的是预设值。
 
 - [ ] **步骤 11：跑全部单测 + 提交**
 
 Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
-Expected: `OK`，不少于 55 个用例。
+Expected: `OK`，**67 个用例**（实测基数：本任务开工前 61 + 本次新增 6）。
+
+> 早期版本写「不少于 55」，是拍出来的数。`discover` 会跑整个 `tests/`，按实测写，别按算式推。
 
 ```bash
 git add nodes/qianhui_latent_yolo/presets.py nodes/qianhui_latent_yolo/__init__.py \
