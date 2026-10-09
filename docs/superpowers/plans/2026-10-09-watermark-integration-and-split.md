@@ -1712,13 +1712,31 @@ PY
 ```
 Expected: `level = 3` 且 `预设导入层级 OK`。
 
-- [ ] **步骤 7：在包 `__init__.py` 导出预设载荷**
+- [ ] **步骤 7：~~在包 `__init__.py` 导出预设载荷~~ → 改为「**不要**在包 `__init__.py` 做模块级导入」**
+
+**作废的旧写法**（下一段说明为什么不许这么做）：
 
 ```python
+# ❌ 不要这样做
 from .presets import as_payload as preset_payload
+# 并加入 __all__
 ```
 
-并加入 `__all__`。
+> ⚠️ **上面那段已作废，不要照做。** 原因与 Task 4 那条 Critical **是同一个失败类别**：
+> `nodes/qianhui_latent_yolo/__init__.py` 现在只有 11 行（`from .node import QianhuiLatentYOLO`
+> \+ 两个 mapping + `__all__`）。在那个文件里加一句**模块级** `from .presets import ...`，
+> 就等于把 `presets.py` 变成**整个节点包的硬依赖** ——
+> `presets.py` 里任何一个笔误（那个 19 条的 `FIELD_OF`、5 档 `PRESETS` 表，
+> 恰恰是本任务最容易出错的地方）都会让 `qianhui_latent_yolo/__init__.py` 导入失败，
+> 于是根 `__init__.py` 第 11 个加载块的 `try/except` 吞掉它，
+> **`QianhuiLatentYOLO` 不注册、节点从菜单消失**。
+>
+> 而节点本身**根本不需要** presets：`parse_config` 里那句 `from ...presets import`
+> 是**调用时**才执行（步骤 5 的插入位置在函数体内），不在导入期。
+> 唯一的消费者是步骤 8 那条路由 —— 而路由**已经有** `try/except`。
+>
+> **所以：包 `__init__.py` 保持原样、一行都不要加**；
+> 步骤 8 直接从这个模块导入，让失败面限定在「路由不可用」而不是「节点消失」。
 
 - [ ] **步骤 8：加 `/qianhui_preset_data` 路由**
 
@@ -1729,7 +1747,7 @@ from .presets import as_payload as preset_payload
 try:
     from aiohttp import web
     from server import PromptServer
-    from .nodes.qianhui_latent_yolo import preset_payload
+    from .nodes.qianhui_latent_yolo.presets import as_payload as preset_payload
 
     @PromptServer.instance.routes.get("/qianhui_preset_data")
     async def qianhui_preset_data(request):
