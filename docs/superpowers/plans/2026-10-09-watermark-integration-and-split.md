@@ -40,7 +40,7 @@
 | ├ `RETURN_*` / `FUNCTION` / `CATEGORY` | 1512-1515 |
 | ├ `__init__` | 1517-1540 |
 | ├ 检测组 | 1541-1788, 1889-2346 |
-| ├ 手骨架提取 `_extract_hand_skeleton` | 1789-1888 |
+| ├ 手骨架提取 `_extract_hand_skeleton` | 1789-1887 |
 | ├ SAM 组 | 2347-2946 |
 | ├ 几何组 | 2947-3178 |
 | ├ 遮罩组 | 3179-3370 |
@@ -572,7 +572,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
   - `algorithms.py`：`LatentAlgorithms`，含 9 个 `@staticmethod`（`latent_aware_resize`、`_mild_sharpen`、`gaussian_feather`、`frequency_aware_color_match`、`simple_color_match`、`smart_soft_blend`、`poisson_blend_latent`、`mpb_blend_latent`、`simple_blend`）。**该文件不得有包内相对导入**（供单测直载）。
   - `model_managers.py`：`YOLOModelManager`、`SAMModelManager`
   - `model_cache.py`：`YOLOModelCache(max_cached_models=3, vram_threshold_mb=500)`
-  - `controlnet.py`：`ControlNetHelper`、`extract_hand_skeleton(image_np, bbox, target_h, target_w)`
+  - `controlnet.py`：`ControlNetHelper`（**只有这一个类，不含 `_extract_hand_skeleton`** —— 它归 `inpaint.py`，见步骤 6 前的说明）
   - `base_node.py`：`LatentKSamplerUpscaler`（仅 `upscale_latent(samples, method, factor)`）
   - `node.py`：`QianhuiLatentYOLO`，MRO = `(DetectionMixin, SamMixin, GeometryMixin, MasksMixin, PolicyMixin, InpaintMixin, LatentKSamplerUpscaler)`
   - 各 mixin：只定义方法，无 `__init__`、无类属性
@@ -725,7 +725,7 @@ Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运
 
 **`base_node.py` 只搬 `upscale_latent`**。源 1242-1265 的 `INPUT_TYPES` 与 1284-1317 的 `process` 从未被调用（该基类未注册），不再移植。
 
-**`_extract_hand_skeleton`（1789-1888）归 `inpaint.py`，保持实例方法原样不动**——它虽不引用 `self`，但唯一调用点在同属精修流程的 5093 行，放同一个 Mixin 可完全避免改造调用点，符合「只改所在文件、不改方法体」的约束。（早期草案曾计划挪到 `controlnet.py` 并改成模块级函数，会违反该约束，已废弃。）
+**`_extract_hand_skeleton`（1789-1887）归 `inpaint.py`，保持实例方法原样不动**——它虽不引用 `self`，但唯一调用点在同属精修流程的 5093 行，放同一个 Mixin 可完全避免改造调用点，符合「只改所在文件、不改方法体」的约束。（早期草案曾计划挪到 `controlnet.py` 并改成模块级函数，会违反该约束，已废弃。）
 
 - [ ] **步骤 6：切 6 个 Mixin**
 
@@ -927,7 +927,7 @@ Expected: 5 个场景的图与 `检测信息` 与基准**完全一致**。
 
 ⚠ 注意：此时节点名已从 `LatentKSamplerUpscalerYOLO` 变为 `QianhuiLatentYOLO`，需在节点图中重新选择该节点，但**控件值要保持与基准一致**。
 
-不一致 → 定位到对应 Mixin 文件排查，优先怀疑：漏搬方法、`controlnet.py` 的 `extract_hand_skeleton` 改造引入的差异、MRO 遮蔽。
+不一致 → 定位到对应 Mixin 文件排查，优先怀疑：漏搬方法、`_iou_xyxy`/`_wiou_xyxy`/`_match_class_name` 丢了 `@staticmethod`、注释横幅漏搬、MRO 遮蔽。
 
 - [ ] **步骤 12：提交**
 
