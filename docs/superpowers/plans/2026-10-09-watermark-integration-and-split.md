@@ -733,16 +733,53 @@ Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运
 """QianhuiLatentYOLO 的方法按职责切分成的 6 个 Mixin。"""
 ```
 
-各 Mixin 文件的内容 = 源文件中对应方法**逐字搬入**（含原注释），导入头按实际用到的符号设：
+各 Mixin 文件的内容 = 源文件中对应方法**逐字搬入**（含原注释与**装饰器行**），导入头按实际用到的符号设。
 
-| Mixin 文件 | 方法（源行号） |
-|---|---|
-| `detection.py` | `_get_ultralytics_version`(1541)、`_check_yolo_capabilities`(1552)、`_load_yolo_model`(1591)、`_decode_latent_to_image`(1745)、`_upscale_image_for_yolo`(1750)、`_detect_with_multi_models`(1889)、`_detect_with_yolo`(1969)、`_detect_single_enhanced`(2181) |
-| `sam.py` | `_refine_with_sam`(2347)、`_unload_sam_model`(2839) |
-| `geometry.py` | `_nms_detections_enhanced`(2947)、`_iou_xyxy`(2978)、`_wiou_xyxy`(2993)、`_match_class_name`(3058)、`_filter_detections_by_target`(3069)、`_bbox_area`(3073)、`_bbox_aspect`(3078)、`_assign_lr_group`(3084)、`_filter_detections_geometry`(3090)、`_sort_detections`(3107)、`_limit_detections_per_class`(3114)、`_expand_bbox_xyxy`(3124)、`_merge_overlapping_detections`(3134) |
-| `masks.py` | `_create_detection_mask`(3179)、`_calculate_ema_attention`(3260)、`_draw_detection_preview`(3329) |
-| `policy.py` | `_resolve_model_path`(3371)、`_resolve_sam_model_path`(3381)、`_parse_target_classes`(3392)、`_auto_params_for_det`(3398)、`_get_preset_class_rules`(3451)、`_parse_class_rules`(3476)、`_match_rule`(3513)、`_get_rule_for_det`(3524)、`_priority_sort_detections`(3539)、`_apply_rule_limits`(3569)、`_build_det_policy`(3592) |
-| `inpaint.py` | `_extract_hand_skeleton`(1789)、`_decode_for_detection`(3702)、`_crop_latent`(3722)、`_build_crop_mask`(3740)、`_maybe_apply_controlnet`(3766)、`_gc_if_needed`(3780)、`_encode_hand_foot_prompts`(3818)、`_merge_conditioning`(3834)、`_get_enhanced_conditioning_simple`(3854)、`_prepare_inpaint_latent`(3872)、`_inpaint_sample`(3932)、`_get_crop_inpaint_mask`(4030) |
+**「逐字搬入」的定义（定死，防装饰器丢失）**：一个方法的搬运区间 = **从它的装饰器行（无装饰器时即 `def` 行）到 `end_lineno`**，闭区间。下表给的就是这个区间，**左端已含装饰器行**。
+
+> ⚠️ **已核实的陷阱**：`_iou_xyxy`、`_wiou_xyxy`、`_match_class_name` 带 `@staticmethod`，装饰器行分别是源 2977 / 2992 / 3057，**比 `def` 行小 1**。若按 `def` 行起切，装饰器就丢了，三者退化为实例方法，而调用点写的是 `self._iou_xyxy(a, b)` —— 绑定 `self` 后会多收一个实参，**运行时 TypeError**。切完务必跑下面的自检。
+
+| Mixin 文件 | 代码行 | 方法（源行区间，左端含装饰器行） |
+|---|---|---|
+| `detection.py` | 698 | `_get_ultralytics_version`(1541-1550)、`_check_yolo_capabilities`(1552-1589)、`_load_yolo_model`(1591-1743)、`_decode_latent_to_image`(1745-1748)、`_upscale_image_for_yolo`(1750-1787)、`_detect_with_multi_models`(1889-1967)、`_detect_with_yolo`(1969-2179)、`_detect_single_enhanced`(2181-2345) |
+| `sam.py` | 598 | `_refine_with_sam`(2347-2837)、`_unload_sam_model`(2839-2945) |
+| `geometry.py` | 219 | `_nms_detections_enhanced`(2947-2975)、`_iou_xyxy`(2977-2990)、`_wiou_xyxy`(2992-3055)、`_match_class_name`(3057-3067)、`_filter_detections_by_target`(3069-3071)、`_bbox_area`(3073-3076)、`_bbox_aspect`(3078-3082)、`_assign_lr_group`(3084-3088)、`_filter_detections_geometry`(3090-3105)、`_sort_detections`(3107-3112)、`_limit_detections_per_class`(3114-3122)、`_expand_bbox_xyxy`(3124-3132)、`_merge_overlapping_detections`(3134-3177) |
+| `masks.py` | 189 | `_create_detection_mask`(3179-3258)、`_calculate_ema_attention`(3260-3327)、`_draw_detection_preview`(3329-3369) |
+| `policy.py` | 316 | `_resolve_model_path`(3371-3379)、`_resolve_sam_model_path`(3381-3390)、`_parse_target_classes`(3392-3395)、`_auto_params_for_det`(3398-3448)、`_get_preset_class_rules`(3451-3473)、`_parse_class_rules`(3476-3511)、`_match_rule`(3513-3522)、`_get_rule_for_det`(3524-3537)、`_priority_sort_detections`(3539-3567)、`_apply_rule_limits`(3569-3590)、`_build_det_policy`(3592-3699) |
+| `inpaint.py` | 504 | `_extract_hand_skeleton`(1789-1887)、`_decode_for_detection`(3702-3719)、`_crop_latent`(3722-3738)、`_build_crop_mask`(3740-3764)、`_maybe_apply_controlnet`(3766-3778)、`_gc_if_needed`(3780-3812)、`_encode_hand_foot_prompts`(3818-3832)、`_merge_conditioning`(3834-3852)、`_get_enhanced_conditioning_simple`(3854-3866)、`_prepare_inpaint_latent`(3872-3930)、`_inpaint_sample`(3932-4028)、`_get_crop_inpaint_mask`(4030-4125) |
+
+**方法数合计 49**（8+2+13+3+11+12），代码行合计 2524。区间之间**互不重叠**（已用 AST 核对）。
+
+**尾部注释横幅**：方法 `end_lineno` 之后、下一个方法（或下一个成员）之前，**不属于任何方法**的纯注释，共 **9 处 25 行**，按原相对顺序随**前一个**方法一起搬入对应 Mixin。已用 AST 空档分析逐行核对，除此之外的成员间空档全是空行：
+
+| 归属 Mixin | 源行 | 注释 |
+|---|---|---|
+| `detection.py` | 1529-1539 | `# -------------------- YOLO工具函数 --------------------` + 10 行 YOLO 版本说明（`# ✅ YOLOv5 (2020) ...` 至 `# ✅ 所有基于 ultralytics 的自定义训练模型`）。**归属 `_get_ultralytics_version`**，排在 `detection.py` 内该方法之前 |
+| `policy.py` | 3397 | `# -------------------- 智能策略 --------------------` |
+| `policy.py` | 3450 | `# -------------------- 类别规则预设模板 (V6.5) --------------------` |
+| `policy.py` | 3475 | `# -------------------- 类别规则解析 --------------------` |
+| `policy.py` | 3701 | `# -------------------- 低显存检测 --------------------` |
+| `inpaint.py` | 3721 | `# -------------------- 裁剪工具 --------------------` |
+| `inpaint.py` | 3814-3816 | `# ====...` / `# V6.4 手脚提示词增强` / `# ====...` |
+| `inpaint.py` | 3868-3870 | `# ====...` / `# V6.0 核心：真正的Inpaint采样` / `# ====...` |
+| `inpaint.py` | 4127-4129 | `# ====...` / `# 核心处理函数 V5.1 - 整合所有优化算法` / `# ====...` |
+
+**切完的自检（在仓库根执行，三条都必须过）**：
+
+```bash
+# 1. 三个 @staticmethod 必须在场（丢掉就会运行时 TypeError）
+grep -c "@staticmethod" nodes/qianhui_latent_yolo/mixins/geometry.py
+# 期望输出：3
+
+# 2. 六个 Mixin 的方法总数必须是 49
+grep -h "^    def " nodes/qianhui_latent_yolo/mixins/*.py | wc -l
+# 期望输出：49
+
+# 3. 25 行横幅注释必须全部在场（9 处，逐个比对）
+grep -h "^    # " nodes/qianhui_latent_yolo/mixins/*.py | wc -l
+# 期望输出：25
+```
+
 
 每个 Mixin 的类名：`DetectionMixin`、`SamMixin`、`GeometryMixin`、`MasksMixin`、`PolicyMixin`、`InpaintMixin`。类体只有方法，**不加 `__init__`**。
 
@@ -792,7 +829,10 @@ except ImportError:
 
 class QianhuiLatentYOLO(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
                        PolicyMixin, InpaintMixin, LatentKSamplerUpscaler):
-    # INPUT_TYPES(1332-1516) / RETURN_* / FUNCTION / CATEGORY / __init__(1517-1540) 原样搬入
+    # 类头注释 1318-1320（可选保留）；类定义 1322 + 文档字符串 1323-1332
+    # INPUT_TYPES 1334-1510（@classmethod@1334 + def@1335）；RETURN_TYPES/RETURN_NAMES/FUNCTION/CATEGORY 1512-1515
+    # __init__ 1517-1527 原样搬入
+    # 注意：1323-1332 是文档字符串，1334 才是 @classmethod。片段 1332-1516 会以孤立的三引号开头，切不得。
     ...
 ```
 
@@ -907,6 +947,8 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Create: `nodes/qianhui_latent_yolo/mixins/pipeline/__init__.py`、`prepare.py`、`detect.py`、`repair.py`、`global_pass.py`、`report.py`
 - Modify: `nodes/qianhui_latent_yolo/node.py`（`process` 瘦身为阶段编排）
 
+> `process` 在源文件中是 `def@4131`、`end@5606`，**共 1476 行，无装饰器**。四个阶段文件切完后，`node.py` 里只剩 `def process(...)` 的签名 + 依次调用 `prepare_run/run_detection/run_repair/run_global_pass/build_report`。
+
 **Interfaces:**
 - Consumes: `QianhuiLatentYOLO` 的 6 个 Mixin（Task 3）
 - Produces:
@@ -924,42 +966,59 @@ Run:
 python - <<'PY'
 import ast, io, collections
 SRC = r"E:\comfuyui 插件\水印\nodes.py"
-# process() 的阶段边界（源文件行号，1-based，闭区间）
+# process() 的阶段边界（源文件行号，1-based，闭区间）——无缝、不重叠、合起来正好覆盖 4131-5606
 PHASES = [
-    ("prepare_a", 4131, 4240),
-    ("prepare_b", 4240, 4386),
-    ("detect",    4387, 4862),
-    ("repair",    4864, 5406),
+    ("prepare_a", 4131, 4239),
+    ("prepare_b", 4240, 4385),
+    ("detect",    4386, 4862),
+    ("repair",    4863, 5406),
     ("global",    5407, 5481),
-    ("report",    5483, 5607),
+    ("report",    5482, 5606),
 ]
-lines = io.open(SRC, encoding="utf-8").read().splitlines()
-def grab(a, b):
-    return "\n".join(lines[a-1:b])
+src = io.open(SRC, encoding="utf-8").read()
+tree = ast.parse(src)
 
-defs, uses = {}, {}
-for name, a, b in PHASES:
-    tree = ast.parse("\n".join("    " + l for l in grab(a, b).splitlines()[1:]) if False else grab(a, b).lstrip())
-    d, u = set(), set()
-    for n in ast.walk(tree):
-        if isinstance(n, ast.Name):
-            (d if isinstance(n.ctx, ast.Store) else u).add(n.id)
-    defs[name], uses[name] = d, u
+# 找到那个巨大的 process：它是某个类里的实例方法，def@4131 / end@5606
+proc = None
+for cls in [n for n in tree.body if isinstance(n, ast.ClassDef)]:
+    for m in cls.body:
+        if isinstance(m, ast.FunctionDef) and m.name == "process":
+            proc = m
+assert proc is not None, "没找到 process"
+assert proc.lineno == 4131 and proc.end_lineno == 5606, (proc.lineno, proc.end_lineno)
+
+def phase_of(lineno):
+    for name, a, b in PHASES:
+        if a <= lineno <= b:
+            return name
+    return None
+
+defs, uses = collections.defaultdict(set), collections.defaultdict(set)
+for n in ast.walk(proc):
+    if isinstance(n, ast.Name):
+        p = phase_of(n.lineno)
+        if p is None:
+            continue
+        (defs[p] if isinstance(n.ctx, ast.Store) else uses[p]).add(n.id)
 
 order = [p[0] for p in PHASES]
 cross = collections.OrderedDict()
-for i, src in enumerate(order):
-    for j in range(i+1, len(order)):
-        dst = order[j]
-        shared = (defs[src] & uses[dst])
+for i, s in enumerate(order):
+    for j in range(i + 1, len(order)):
+        d = order[j]
+        shared = defs[s] & uses[d]
         if shared:
-            cross[f"{src} -> {dst}"] = sorted(shared)
+            cross[f"{s} -> {d}"] = sorted(shared)
 for k, v in cross.items():
     print(f"\n{k}  ({len(v)} 个)")
     print("  " + ", ".join(v))
 print("\n合计跨阶段变量:", sum(len(v) for v in cross.values()))
 PY
 ```
+> ⚠️ **不要把这六个片段各自 `ast.parse` 一遍**。它们是同一个函数体内的**缩进片段**，不是独立模块：`prepare_b`(4240-4385) 以普通赋值语句开头、`detect`(4386-4862) 以 `try:` 开头而其 `except` 在片段之外，逐个解析必然 `IndentationError`（`.lstrip()` 和 `textwrap.dedent` 都救不了）。正确做法是**整个文件解析一次，`ast.walk(proc)` 拿到真实的 `ast.Name` 节点，再按 `lineno` 归到阶段**——脚本已按此写好。
+>
+> 另：阶段的划分只影响「哪些变量要进 `YoloRunContext`」，不影响搬运的合法性。`detect`/`repair`/`global`/`report` 四段**都在 `for i in range(batch_size)` 循环体内**，这正是 `ctx` 必须带 `i`、`out_latents`、`samples` 等字段的原因。
+
 Expected: 打印每对相邻/跨阶段共享的变量名清单。**这份清单就是 `YoloRunContext` 需要承载的字段集**——以脚本输出为准，不要凭记忆增删。
 
 - [ ] **步骤 2：写 `context.py`**
