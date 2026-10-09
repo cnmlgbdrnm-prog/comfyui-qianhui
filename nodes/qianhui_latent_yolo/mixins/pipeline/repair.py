@@ -3,9 +3,9 @@ import comfy.model_management
 import torch
 import torch.nn.functional as F
 
-from ..algorithms import LatentAlgorithms
+from ...algorithms import LatentAlgorithms
 from ..context import YoloRunContext
-from ..controlnet import ControlNetHelper
+from ...controlnet import ControlNetHelper
 
 
 def run_repair(node, ctx) -> None:

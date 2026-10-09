@@ -4,7 +4,7 @@ import time
 import torch
 import torch.nn.functional as F
 
-from ..algorithms import LatentAlgorithms
+from ...algorithms import LatentAlgorithms
 from ..context import YoloRunContext
 
 
