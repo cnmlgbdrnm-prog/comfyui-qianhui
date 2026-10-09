@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 去掉千绘 4 个既有节点（角色定制/肢体动作师/场景光效大师/战斗指挥官）控件标签的数字前缀，并删除用户指定的 8 个控件，同时把删除 `模型类型`/`环境总权重` 后的输出统一为纯标签。
+**Goal:** 去掉千绘 4 个既有节点（角色定制/肢体动作师/场景光效大师/战斗指挥官）控件标签的数字前缀，并删除用户指定的 9 个控件，同时把删除 `模型类型`/`环境总权重` 后的输出统一为纯标签。
 
-**Architecture:** 两个任务，都是对现有单文件的原地修改。Task 1 是 67 个参数键名的重命名（键名即控件标签，也是 `kwargs` 的键，必须同步替换全部引用）；Task 2 删除 8 个控件并收敛权重分支。因为 4 个节点只依赖 `re`/`json`/`os`/`random`/`time`，**不依赖 ComfyUI/torch/GPU**，所以两者都能用单元测试自动验证。
+**Architecture:** 两个任务，都是对现有单文件的原地修改。Task 1 是 67 个参数键名的重命名（键名即控件标签，也是 `kwargs` 的键，必须同步替换全部引用）；Task 2 删除 9 个控件并收敛权重分支。因为 4 个节点只依赖 `re`/`json`/`os`/`random`/`time`，**不依赖 ComfyUI/torch/GPU**，所以两者都能用单元测试自动验证。
 
 **Tech Stack:** Python 3.14、unittest、ComfyUI 节点 API（仅 `INPUT_TYPES` 结构约定）。
 
@@ -260,7 +260,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 ---
 
-## Task 2: 删除 8 个控件 + 输出纯标签
+## Task 2: 删除 9 个控件 + 输出纯标签
 
 **Files:**
 - Modify: `nodes/character_node.py`（删 3 个控件）
@@ -356,7 +356,7 @@ class TestPureTagOutput(unittest.TestCase):
 - [ ] **步骤 2：跑测试，确认失败**
 
 Run: `python -X utf8 tests/test_node_widgets.py`
-Expected: FAIL——`test_deleted_widgets_absent` 报出 8 个仍存在的控件；`test_*_no_anima_branch_left` 因 `is_anima` 仍在而失败。
+Expected: FAIL——`test_deleted_widgets_absent` 报出 9 个仍存在的控件；`test_*_no_anima_branch_left` 因 `is_anima` 仍在而失败。
 
 - [ ] **步骤 3：改 `character_node.py`**
 
@@ -523,7 +523,21 @@ Expected: FAIL——`test_deleted_widgets_absent` 报出 8 个仍存在的控件
 
 最后更新模块 docstring（第 7 行）里「模型类型: SDXL 用 :1.2/:1.1 权重习惯; anima 按官方权重规范 2~5」的描述，改为「输出纯标签，不含权重」。
 
-- [ ] **步骤 7：跑测试，确认通过**
+- [ ] **步骤 7：更新键数基线，再跑测试**
+
+Task 1 留下的 `test_key_count_unchanged` 钉的是**删控件之前**的键数（34/14/11/8）。本任务删掉 9 个控件后它必然失败——**这是预期的失败，要改的是这个断言，不是控件**。把 `expected` 改成：
+
+```python
+    def test_key_count_unchanged(self):
+        """删控件后（Task 2）的键数，按机读实测钉住"""
+        expected = {"character": 31, "pose": 12, "scene": 9, "combat": 6}
+        for key, n in expected.items():
+            self.assertEqual(len(all_keys(node_class(key))), n, f"{key} 键数变化")
+```
+
+（34-3 / 14-2 / 11-2 / 8-2。`DELETED` 里共 9 个控件：character 3、pose 2、scene 2、combat 2。）
+
+> 该用例的**名字**里「unchanged」现在指的是「本次任务内不变」，不再指「相对改动前不变」。若你觉得刺眼，可一并改名为 `test_key_count_after_removal`——但**两处引用要一起改**，不留半截。
 
 Run: `python -X utf8 tests/test_node_widgets.py`
 Expected: `OK`，11 个用例全过（Task 1 的 3 个 + 本任务 8 个）。
@@ -538,7 +552,7 @@ Expected: `OK`，32 个用例（原 21 + 新增 11）。
 - [ ] **步骤 9：手工核对界面与输出**
 
 重启 ComfyUI：
-- 4 个节点界面不再有那 8 个控件，其余控件顺序不变
+- 4 个节点界面不再有那 9 个控件；character/pose/combat 的顺序不变，scene 的「氛围句」会上移 2 位（它原本排在待删的 手动补充/环境总权重 之后）——**这是预期的，用户已确认工作流会重新生成**
 - 肢体动作师输出形如 `spread eagle, looking at viewer`（纯标签、无权重、无下划线）
 - 战斗指挥官输出形如 `combat mode, dynamic pose, intense atmosphere, katana, ...`
 - 场景光效大师输出不被 `(...)` 包裹
@@ -548,7 +562,7 @@ Expected: `OK`，32 个用例（原 21 + 新增 11）。
 
 ```bash
 git add nodes/character_node.py nodes/pose_node.py nodes/scene_node.py nodes/combat_node.py tests/test_node_widgets.py
-git commit -m "feat: 4 节点删除 8 个控件，权重改纯标签输出
+git commit -m "feat: 4 节点删除 9 个控件，权重改纯标签输出
 
 - 角色定制 删 构图范围/Lora触发词/手动补充
 - 肢体动作师 删 手动补充/模型类型；5 处 is_anima 收敛为纯标签，
