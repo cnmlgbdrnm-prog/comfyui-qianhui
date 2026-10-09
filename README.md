@@ -1,6 +1,6 @@
 # 千绘 (comfyui-qianhui)
 
-ComfyUI 综合提示词插件，由四个历史插件整合而成：
+ComfyUI 综合提示词插件，由五个历史插件整合而成：
 
 | 来源插件 | 内容 |
 |---|---|
@@ -8,11 +8,12 @@ ComfyUI 综合提示词插件，由四个历史插件整合而成：
 | ComfyUIcustom_nodes | 剧情编排机、剧情播放器、角色定制、场景光效大师 |
 | confyui-pose | 肢体动作师、姿势大师、战斗指挥官 |
 | commfyui-loraxy | 多 LoRA XY 网格测试节点 |
+| 水印插件 | Latent YOLO 智能修复（含 SAM/ControlNet）、水印添加、水印提取 |
 
 ## 安装
 
 将 `comfyui-qianhui` 整个文件夹放入 ComfyUI 的 `custom_nodes/` 目录，重启 ComfyUI 即可。
-节点在右键菜单中的分组统一为 **千绘/**（提示词、剧情、角色、场景、动作、姿势、战斗、网格）。
+节点在右键菜单中的分组统一为 **千绘/**（提示词、剧情、角色、场景、动作、姿势、战斗、网格、修复、水印）。
 
 ## 节点列表
 
@@ -28,27 +29,33 @@ ComfyUI 综合提示词插件，由四个历史插件整合而成：
 | 千绘 · 战斗指挥官 | `QianhuiCombatMaster` | 武器/招式/战损/特效/运镜组合，随机激战或手动指令；武器-招式组联动防错配；输出纯标签（不加权重） |
 | 千绘 · 角色随机师 | `QianhuiRandomCharacter` | V2：分类筛选（不限/女/男/兽类·福瑞/机械·人造人/兽娘/机械娘）+ 手动指定（选作品→角色下拉联动→指定角色或作品内随机）；Danbooru 高频角色两级随机，按模型自动转义；1629 角色分类标签与全量汉化（英文口输出供提示词使用，中文口输出显示名） |
 | 千绘 · 多LoRA XY网格 | `QianhuiMultiLoRAGrid` | XY 网格批量对比 LoRA（行=最多 6 个 LoRA + No LoRA 基线行，列=X 轴统一权重），逐格挂载采样、实时预览、拼图输出；自动溯源底模名称与正/负向提示词绘制在信息栏 |
+| 千绘 · Latent智能修复 | `QianhuiLatentYOLO` | YOLO 多尺度检测 + Tile 分块 + Seg 分割 + SAM 精修 + ControlNet + 手脚增强；`配置预设` 五档一键调速/调质 |
+| 千绘 · 水印添加 | `QianhuiWatermarkAdd` | 可见水印（文字/图片平铺）与 DCT-QIM 隐形水印；依赖 `reedsolo` |
+| 千绘 · 水印提取 | `QianhuiWatermarkExtract` | 提取 DCT-QIM 隐形水印文本 |
 
 ## 目录结构
 
 ```
 comfyui-qianhui/
-├── __init__.py          # 注册入口 (10 节点统一 Qianhui 前缀)
+├── __init__.py          # 注册入口 (13 节点统一 Qianhui 前缀)
 ├── nodes/               # 节点实现
-│   ├── negative_node.py    # 智能负面提示词
-│   ├── story_node.py       # 剧情播放器 + 剧情编排机
-│   ├── character_node.py   # 角色定制
-│   ├── scene_node.py       # 场景光效大师
-│   ├── pose_node.py        # 肢体动作师
-│   ├── sex_pose_node.py    # 姿势大师
-│   ├── combat_node.py      # 战斗指挥官
-│   ├── role_name_node.py   # 角色随机师
-│   └── lora_grid_node.py   # 多LoRA XY网格
+│   ├── negative_node.py     # 智能负面提示词
+│   ├── story_node.py        # 剧情播放器 + 剧情编排机
+│   ├── character_node.py    # 角色定制
+│   ├── scene_node.py        # 场景光效大师
+│   ├── pose_node.py         # 肢体动作师
+│   ├── sex_pose_node.py     # 姿势大师
+│   ├── combat_node.py       # 战斗指挥官
+│   ├── role_name_node.py    # 角色随机师
+│   ├── lora_grid_node.py    # 多LoRA XY网格
+│   ├── qianhui_latent_yolo/ # Latent 智能修复（支撑模块 + 6 Mixin + 5 阶段函数）
+│   └── qianhui_watermark/   # 水印添加 / 提取
 ├── data/                # 角色素材 + 高频角色名库(role_names/role_owner/role_names_cn)
 ├── story_scripts/       # 剧本文件
 ├── pose_data/           # 动作素材
 ├── configs/             # 姿势分类与配套动作
-└── combat_data/         # 战斗素材
+├── combat_data/         # 战斗素材
+└── requirements.txt     # Python 依赖（reedsolo）
 ```
 
 ## 注册约定
@@ -94,3 +101,5 @@ comfyui-qianhui/
   建议重新检查一遍参数。
 - 肢体动作师、战斗指挥官、场景光效大师改为**纯标签输出**（不含 `(tag:1.2)` 权重）。
   需要加权重时，在后续的提示词节点里自行书写。
+- `Latent 智能修复` 与 `水印` 模块需要额外依赖：`pip install reedsolo`（隐形水印的 Reed-Solomon 纠错）。未安装时可见水印仍可用，隐形水印会报出带安装指引的错误。
+- 整合自水印插件的 3 个节点**不保留旧注册名**（`LatentKSamplerUpscalerYOLO`、`WatermarkAdd`、`WatermarkExtract` 及中文别名），旧 workflow 需重新选择节点。

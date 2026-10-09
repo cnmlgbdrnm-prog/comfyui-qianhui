@@ -1,13 +1,14 @@
 """
 千绘 (comfyui-qianhui) — ComfyUI 综合提示词插件
 
-由四个历史插件整合而成：
+由五个历史插件整合而成：
 - comfyui-FMC (智能负面提示词)
 - ComfyUIcustom_nodes (剧情/角色/场景系列)
 - confyui-pose (动作/姿势/战斗系列)
 - commfyui-loraxy (多 LoRA XY 网格测试)
+- 水印插件 (Latent YOLO 智能修复 / 水印添加 / 水印提取)
 
-模块职责：统一注册全部 10 个节点（10 类，剧情模块含编排/调度两节点）到
+模块职责：统一注册全部 13 个节点（13 类，剧情模块含编排/调度两节点）到
 NODE_CLASS_MAPPINGS / NODE_DISPLAY_NAME_MAPPINGS，注册名统一带 Qianhui 前缀。
 单个模块加载失败不影响其余节点。
 """
