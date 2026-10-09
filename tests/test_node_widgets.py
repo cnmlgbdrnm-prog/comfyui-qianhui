@@ -40,8 +40,12 @@ def node_class(key: str):
 
 
 def gen_func(key: str):
+    """取生成函数。4 个节点的生成函数都是**类方法**，不在模块层：
+    原实现 getattr(load_node(...), fn_name) 对每个 key 都抛 AttributeError
+    （Task 1 的用例未调用过它，所以一直没暴露）。改从类上取，
+    返回普通函数，调用方仍按 fn(实例, **kwargs) 使用。"""
     module_file, _, fn_name = FILES[key]
-    return getattr(load_node(module_file), fn_name)
+    return getattr(node_class(key), fn_name)
 
 
 def all_keys(cls) -> list:
@@ -118,10 +122,88 @@ class TestNoNumericPrefix(unittest.TestCase):
             self.assertEqual(left, [], f"{module_file} 残留旧键名: {left}")
 
     def test_key_count_unchanged(self):
-        """只改名不增删，键数应与改动前一致"""
-        expected = {"character": 34, "pose": 14, "scene": 11, "combat": 8}
+        """删控件后（Task 2）的键数，按机读实测钉住"""
+        expected = {"character": 31, "pose": 12, "scene": 9, "combat": 6}
         for key, n in expected.items():
             self.assertEqual(len(all_keys(node_class(key))), n, f"{key} 键数变化")
+
+
+DELETED = {
+    "character": {"构图范围", "Lora触发词", "手动补充"},
+    "pose": {"手动补充", "模型类型"},
+    "scene": {"手动补充", "环境总权重"},
+    "combat": {"模型类型", "补充指令"},
+}
+
+# 权重语法：形如 (tag:1.2) / (combat mode:2) / (a, b:1.1)
+WEIGHT_RE = re.compile(r"\(\s*[^()]*:\s*\d+(?:\.\d+)?\s*\)")
+
+
+class TestDeletedWidgets(unittest.TestCase):
+    def test_deleted_widgets_absent(self):
+        for key, gone in DELETED.items():
+            keys = set(all_keys(node_class(key)))
+            left = sorted(gone & keys)
+            self.assertEqual(left, [], f"{key} 仍存在待删控件: {left}")
+
+    def test_default_kwargs_call_does_not_raise(self):
+        """用 INPUT_TYPES 默认值调用生成函数，不应抛 KeyError（防漏删引用）"""
+        for key in FILES:
+            cls, fn = node_class(key), gen_func(key)
+            out = fn(cls(), **default_kwargs(cls))
+            self.assertIsInstance(out, tuple)
+            self.assertEqual(len(out), 1)
+
+
+class TestPureTagOutput(unittest.TestCase):
+    def _run(self, key, **override):
+        cls, fn = node_class(key), gen_func(key)
+        kw = default_kwargs(cls)
+        kw.update(override)
+        (out,) = fn(cls(), **kw)
+        return out
+
+    def test_no_weight_syntax_in_output(self):
+        # character 排除在外: 它自带的内置权重 (rating/体型 等, 如
+        # "(rating: safe:1.2)"、"(slim, slender body:1.35)") 不在本次改动范围,
+        # 本任务只把 pose/scene/combat 收敛成纯标签。
+        for key in ("pose", "scene", "combat"):
+            out = self._run(key)
+            self.assertTrue(out, f"{key} 输出为空，断言无意义——检查 default_kwargs 取到的是否为占位项")
+            m = WEIGHT_RE.search(out)
+            self.assertIsNone(m, f"{key} 输出仍含权重语法: {m.group(0) if m else ''}")
+
+    def test_combat_no_anima_branch_left(self):
+        src = io.open(os.path.join(NODES_DIR, "combat_node.py"), encoding="utf-8").read()
+        self.assertNotIn("is_anima", src)
+
+    def test_pose_no_anima_branch_left(self):
+        src = io.open(os.path.join(NODES_DIR, "pose_node.py"), encoding="utf-8").read()
+        self.assertNotIn("is_anima", src)
+
+    def test_pose_underscores_converted_to_spaces(self):
+        """统一转空格：手动模式下，全身基础选到带下划线的项时输出不应有下划线"""
+        cls = node_class("pose")
+        spec = cls.INPUT_TYPES()["required"]
+        options = spec["全身基础"][0]
+        with_us = [o for o in options if "_" in o]
+        if not with_us:
+            self.skipTest("动作库中无带下划线的选项")
+        out = self._run("pose", **{"🎲随机动作模式": False, "全身基础": with_us[0]})
+        self.assertNotIn("_", out, f"下划线未转换: {out!r}")
+
+    def test_scene_output_has_no_weight_wrapper(self):
+        """环境总权重删除后，输出不应被 (...) 包裹"""
+        out = self._run("scene")
+        self.assertTrue(out, "场景输出为空，断言无意义")
+        self.assertFalse(out.startswith("(") and out.endswith(")"),
+                         f"场景输出仍被权重包裹: {out!r}")
+
+    def test_combat_and_pose_nonempty(self):
+        """纯标签化后输出仍应有内容（防误删整段）"""
+        for key in ("pose", "combat"):
+            out = self._run(key)
+            self.assertTrue(out, f"{key} 输出为空")
 
 
 if __name__ == "__main__":

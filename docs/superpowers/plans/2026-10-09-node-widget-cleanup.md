@@ -10,6 +10,10 @@
 
 ## Global Constraints
 
+- **注释与 docstring 里也不许残留带前缀的旧键名**（如 `08_环境总权重`）。Task 1 的
+  `test_source_has_no_old_key_leftovers` 用的是裸 `k in src`，注释一样会被匹配到。
+  需要引用某个控件时写**去前缀后**的名字。
+
 - 4 个节点文件：`nodes/character_node.py`、`nodes/pose_node.py`、`nodes/scene_node.py`、`nodes/combat_node.py`。**不改其他节点文件**。
 - 节点 class 名与注册名**不变**（`QianhuiCharacterCreator` / `QianhuiActionMaster` / `QianhuiSceneMaster` / `QianhuiCombatMaster`）。
 - 控件**顺序不变**（顺序由 `INPUT_TYPES` 书写顺序决定，与键名无关）。
@@ -413,7 +417,7 @@ Expected: FAIL——`test_deleted_widgets_absent` 报出 9 个仍存在的控件
 把 310 行的加权拼接改为纯标签：
 
 ```python
-        if parts["global"]: final_list.append(parts["global"])   # 核心动作加权
+        if parts["global"]: final_list.append(parts["global"])   # 核心动作
 ```
 
 291 行改为：
@@ -466,7 +470,7 @@ Expected: FAIL——`test_deleted_widgets_absent` 报出 9 个仍存在的控件
 ```python
         content = ", ".join(parts)
 
-        # 纯标签输出（原 08_环境总权重 滑杆已移除）
+        # 纯标签输出（权重滑杆已移除）
         if not content:
             return ("",)
         return (content,)

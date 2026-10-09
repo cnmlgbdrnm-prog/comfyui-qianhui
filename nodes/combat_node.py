@@ -4,8 +4,7 @@
 模块职责：从 combat_data/ 目录加载武器/攻击姿态/战损/特效/运镜数据池，
 支持随机激战与手动指令两种模式，按 氛围-运镜-武器-招式-特效-战损 顺序组装战斗提示词。
 武器-招式联动: WEAPON_ACTION_GROUPS 按武器分组抽取, 避免"弓箭+武士刀招式"错配。
-模型类型: SDXL 用 :1.2/:1.1 权重习惯; anima 按官方权重规范 2~5,
-只给氛围与武器加权(最多2个), 特效/保底运镜去权重纯标签。
+输出纯标签，不含权重。
 数据流：combat_data/*.json -> 选项/随机抽取 -> 提取英文 Tag -> 拼接输出 STRING。
 外部依赖：无（仅标准库）。
 """
@@ -90,8 +89,6 @@ class QianhuiCombatMaster:
                 "🩸战损程度": (COMBAT_DATA["damage"],),
                 "✨技能特效": (COMBAT_DATA["vfx"],),
                 "📸战斗运镜": (COMBAT_DATA["camera"],),
-                "模型类型": (["SDXL", "anima (权重2~5)"],),
-                "补充指令": ("STRING", {"default": "", "multiline": False, "placeholder": "如: explosion background, glowing eyes"}),
             }
         }
 
@@ -133,9 +130,6 @@ class QianhuiCombatMaster:
 
         # --- 1. 数据准备 ---
         is_random = kwargs["🔥激战模式"]
-        # 模型类型: anima 权重规范 2~5, 只给氛围与武器加权(最多2个),
-        # 特效/保底运镜去权重纯标签, 符合 anima"权重少而精"规范
-        is_anima = "anima" in kwargs.get("模型类型", "SDXL")
 
         # 定义槽位
         slot_camera = ""
@@ -169,7 +163,7 @@ class QianhuiCombatMaster:
 
             # 随机模式下，如果没有随机到运镜，给一个保底的动态运镜
             if not slot_camera:
-                slot_camera = "motion blur, depth of field, dynamic angle" if is_anima else "motion blur, depth of field, (dynamic angle:1.3)"
+                slot_camera = "motion blur, depth of field, dynamic angle"
         else:
             # === 手动模式 (Tactical Mode) ===
             slot_weapon = extract(kwargs["🗡️武器装备"])
@@ -184,31 +178,22 @@ class QianhuiCombatMaster:
         ordered_parts = []
 
         # [0] 基础氛围 (Global Context) - 永远在最前
-        if is_anima:
-            ordered_parts.append("(combat mode:2), dynamic pose, intense atmosphere")
-        else:
-            ordered_parts.append("(combat mode:1.2), dynamic pose, intense atmosphere")
+        ordered_parts.append("combat mode, dynamic pose, intense atmosphere")
 
         # [1] 视角 (View/Camera) - 决定构图
         if slot_camera: ordered_parts.append(slot_camera)
 
         # [2] 武器 (Weapon) - 决定主体持有的物品
-        # 增加权重，确保武器不消失 (anima 下同为 2 起步)
-        if slot_weapon: ordered_parts.append(f"({slot_weapon}:{'2' if is_anima else '1.2'})")
+        if slot_weapon: ordered_parts.append(slot_weapon)
 
         # [3] 招式 (Action) - 紧跟武器，确保是"用这个武器"做的动作
         if slot_action: ordered_parts.append(slot_action)
 
         # [4] 特效 (VFX) - 动作产生的光影/粒子
-        # SDXL 加权让特效更明显; anima 下纯标签(权重留给氛围与武器)
-        if slot_vfx: ordered_parts.append(slot_vfx if is_anima else f"({slot_vfx}:1.1)")
+        if slot_vfx: ordered_parts.append(slot_vfx)
 
         # [5] 战损 (Damage) - 状态叠加
         if slot_damage: ordered_parts.append(slot_damage)
-
-        # [6] 手动补充指令 (Manual Add) - 最后补充细节
-        manual_add = kwargs.get("补充指令", "").strip()
-        if manual_add: ordered_parts.append(manual_add)
 
         # --- 3. 生成最终字符串 ---
         final_prompt = ", ".join([p for p in ordered_parts if p])

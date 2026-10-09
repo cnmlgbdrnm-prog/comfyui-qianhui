@@ -7,7 +7,7 @@ anima 适配：画面画质风格 内置完整质量体系 —— 官方完整�
 masterpiece/best quality + 美学评分三叠 + meta highres/absurdres/newest)与
 美学评分 5 档(score_9+8+7 / score_9 / score_8 / score_7 / score_6)；
 氛围句 提供单句环境氛围自然语言(Hybrid 格式第二层, 与标签逗号混排)，
-权重滑杆设 1.0 即纯标签输出, 符合官方"硬标签层+质量词+氛围句"规范, 无需模型类型区分。
+输出纯标签, 符合官方"硬标签层+质量词+氛围句"规范, 无需模型类型区分。
 Krea 2 适配：画面画质风格 内置 Krea 2 画风词库 —— Krea 2 (Qwen3VL 编码器)
 以自然语言风格短语为主, 含官方 Moodboard 画风(电影微距/巨构/粗粝写实、霓虹黑色电影、
 霓虹 VHS、霓虹剪影)与官方风格 LoRA 触发词(如 neon noir fog style / emerald haze style),
@@ -308,8 +308,6 @@ class QianhuiSceneMaster:
                 "全局衣物质感": (SCENE_DATA["clothing_texture"],),
 
                 # --- 控制 ---
-                "手动补充": ("STRING", {"default": "", "multiline": False, "placeholder": "如: fire, explosion, underwater"}),
-                "环境总权重": ("FLOAT", {"default": 1.1, "min": 0.5, "max": 1.6, "step": 0.1, "display": "slider"}),
                 "氛围句": (SCENE_DATA["atmosphere"],),
             }
         }
@@ -344,7 +342,6 @@ class QianhuiSceneMaster:
         visual = extract(kwargs["画面画质风格"])
         texture = extract(kwargs["全局衣物质感"])
         atmo = extract(kwargs["氛围句"])
-        manual = kwargs.get("手动补充", "").strip()
 
         # 2. 智能拼接 (构建画面层级)
         # 地点是基础
@@ -366,22 +363,12 @@ class QianhuiSceneMaster:
         # 氛围句 (anima Hybrid 自然语言层, 单句环境氛围, 与标签逗号混排)
         if atmo: parts.append(atmo)
 
-        if manual: parts.append(manual)
-
         content = ", ".join(parts)
-        weight = kwargs["环境总权重"]
 
-        # 3. 权重逻辑
-        # 权重滑杆全局加权 (权重1.0即纯标签); anima 用户权重设 1.0
-        # 并在 画面画质风格 选 score_7/score_9, 即纯标签+官方评分词
+        # 纯标签输出（权重滑杆已移除）
         if not content:
             return ("",)
-
-        if weight == 1.0:
-            return (content,)
-        else:
-            # 全局加权
-            return (f"({content}:{weight:g})",)
+        return (content,)
 
 # 注册代码
 NODE_CLASS_MAPPINGS = {

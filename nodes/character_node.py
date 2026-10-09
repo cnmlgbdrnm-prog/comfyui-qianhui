@@ -70,7 +70,6 @@ BODY_DATA = load_json_data("body")
 HEAD_DATA = load_json_data("head")
 CLOTHING_DATA = load_json_data("clothing")
 ACCESSORIES_DATA = load_json_data("accessories")
-COMPOSITION_DATA = load_json_data("composition")
 ENHANCEMENT_DATA = load_json_data("enhancements")
 
 AGE_ENHANCEMENT = ENHANCEMENT_DATA.get("age_enhancement", {})
@@ -141,10 +140,6 @@ class QianhuiCharacterCreator:
                 "颈饰": (get_list(ACCESSORIES_DATA, "acc_neck"),),
                 "手部饰品": (get_list(ACCESSORIES_DATA, "acc_hand"),),
                 "特殊饰品": (get_list(ACCESSORIES_DATA, "acc_special"),),
-                # --- 7. 扩展 ---
-                "构图范围": (get_list(COMPOSITION_DATA, "shot_type"),),
-                "Lora触发词": ("STRING", {"default": "", "placeholder": "输入Lora触发词 (会自动融合)"}),
-                "手动补充": ("STRING", {"default": "", "multiline": True, "placeholder": "在这里输入自定义 Tag..."}),
             }
         }
 
@@ -244,7 +239,6 @@ class QianhuiCharacterCreator:
         raw_identity = extract(kwargs["身份"])
         raw_age = extract(kwargs["年龄与人设"])
         raw_race = extract(kwargs["种族"])
-        lora_trigger = kwargs.get("Lora触发词", "").strip()
 
         main_identity = raw_identity or "1girl"
 
@@ -262,8 +256,6 @@ class QianhuiCharacterCreator:
 
         # 构建核心标签
         core_tags = []
-        if lora_trigger:
-            core_tags.append(lora_trigger)
         core_tags.append(main_identity)
         core_tags.extend(age_extra_tags)
 
@@ -372,17 +364,6 @@ class QianhuiCharacterCreator:
         parts.append(combine(kwargs["袜饰颜色"], kwargs["袜饰"]))
         parts.append(combine(kwargs["鞋子颜色"], kwargs["鞋子"]))
         parts.append(wrap(extract(kwargs["特殊饰品"])))
-
-        # ==========================================
-        # 7. 构图与补充
-        # ==========================================
-        shot_tag = extract(kwargs["构图范围"])
-        if shot_tag:
-            parts.append(f"({shot_tag}:1.1)")
-
-        manual = kwargs.get("手动补充", "").strip()
-        if manual:
-            parts.append(manual)
 
         # ==========================================
         # 输出

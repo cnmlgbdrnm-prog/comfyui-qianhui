@@ -3,9 +3,8 @@
 
 模块职责：从 pose_data/ 目录读取视角/全身/头部/左右手/左右腿/表情等 JSON
 数据池，支持随机模式与手动模式，按 视角-全身-头-手-腿-表情 顺序组装动作提示词。
-模型类型: SDXL 用 :1.2 轻强调; anima 按官方权重规范 2~5 (核心动作 :2,
-细节/表情不加权, 权重少而精最多4个)。标签均为小写空格形式, 符合 anima 标签规范。
-数据流：pose_data/*.json -> 选项/随机抽取 -> 提取英文 Tag -> 按模型类型加权拼接。
+输出纯标签，不含权重；下划线统一转空格 (score 系列除外, 本节点无 score 标签)。
+数据流：pose_data/*.json -> 选项/随机抽取 -> 提取英文 Tag -> 拼接输出纯标签。
 外部依赖：无（仅标准库）。
 """
 
@@ -111,8 +110,6 @@ class QianhuiActionMaster:
 
                 # 细节层
                 "表情细节": (POSE_DATA["expressions"],),
-                "手动补充": ("STRING", {"default": "", "multiline": False, "placeholder": "额外补充 tag..."}),
-                "模型类型": (["SDXL", "anima (权重2~5)"],),
             }
         }
 
@@ -157,14 +154,9 @@ class QianhuiActionMaster:
             "hands": [],
             "legs": [],
             "expression": "",
-            "manual": ""
         }
 
         is_auto = kwargs["🎲随机动作模式"]
-        # 模型类型: SDXL 权重习惯 (:1.2 轻强调); anima 权重规范 2~5,
-        # 核心动作 2 起步, 细节/表情不再加权(anima 官方规范: 权重少而精, 最多4个)
-        is_anima = "anima" in kwargs.get("模型类型", "SDXL")
-        w_global = ":2)" if is_anima else ":1.2)"
 
         # ===========================
         # 1. 视角 & 全身 (View & Global)
@@ -287,27 +279,22 @@ class QianhuiActionMaster:
             parts["expression"] = extract(kwargs["表情细节"])
 
         if not parts["expression"]:
-            # anima 下纯标签(权重1.0无意义), SDXL 保留权重写法
-            parts["expression"] = "neutral expression" if is_anima else "(neutral expression:1.0)"
+            parts["expression"] = "neutral expression"
 
         # ===========================
         # 5. 组装输出 (Assembly)
         # ===========================
-        # anima 规范: 标签用空格代替下划线 (score 系列除外, 本节点无 score 标签);
-        # 手动补充为用户输入, 不转换, 由用户按模型习惯自行书写
-        if is_anima:
-            for k in ("view", "global", "head", "expression"):
-                parts[k] = parts[k].replace("_", " ")
-            parts["hands"] = [h.replace("_", " ") for h in parts["hands"]]
-            parts["legs"] = [l.replace("_", " ") for l in parts["legs"]]
+        # anima 规范: 标签用空格代替下划线 (score 系列除外, 本节点无 score 标签)
+        for k in ("view", "global", "head", "expression"):
+            parts[k] = parts[k].replace("_", " ")
+        parts["hands"] = [h.replace("_", " ") for h in parts["hands"]]
+        parts["legs"] = [l.replace("_", " ") for l in parts["legs"]]
 
-        parts["manual"] = kwargs.get("手动补充", "").strip()
-
-        # 核心顺序: View -> Global -> Head -> Hands -> Legs -> Expression -> Manual
+        # 核心顺序: View -> Global -> Head -> Hands -> Legs -> Expression
         final_list = []
 
         if parts["view"]: final_list.append(parts["view"])
-        if parts["global"]: final_list.append(f"({parts['global']}{w_global}") # 核心动作加权
+        if parts["global"]: final_list.append(parts["global"])   # 核心动作
         if parts["head"]: final_list.append(parts["head"])
 
         # 扩展手脚列表
@@ -315,12 +302,11 @@ class QianhuiActionMaster:
         final_list.extend(parts["legs"])
 
         final_list.append(parts["expression"])
-        if parts["manual"]: final_list.append(parts["manual"])
 
         prompt_string = ", ".join(final_list)
 
-        # 自动补充细节tag (anima 下纯标签不加权, 符合权重少而精规范)
+        # 自动补充细节tag (纯标签不加权)
         if any(x in prompt_string for x in ["hand", "finger", "hold", "reach"]):
-            prompt_string += ", detailed fingers" if is_anima else ", (detailed fingers:1.1)"
+            prompt_string += ", detailed fingers"
 
         return (prompt_string,)
