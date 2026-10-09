@@ -303,18 +303,48 @@ Mixin 只定义方法，不定义 `__init__`、不持有类属性。跨 Mixin �
 
 ### 3.4 纯标签化的代码位置
 
-| 文件 | 位置 | 改动 |
-|---|---|---|
-| `pose_node.py` | 167 | 删除 `w_global = ":2)" if is_anima else ":1.2)"` |
-| `pose_node.py` | 310 | `f"({parts['global']}{w_global}"` → `parts["global"]` |
-| `combat_node.py` | 138 | 删除 `is_anima = ...` |
-| `combat_node.py` | 172 | 相机分支统一取纯标签 `"motion blur, depth of field, dynamic angle"` |
-| `combat_node.py` | 187-190 | 统一为 `"combat mode, dynamic pose, intense atmosphere"` |
-| `combat_node.py` | 197 | 统一为 `slot_weapon`（去 `:2` / `:1.2` 包装） |
-| `combat_node.py` | 204 | 统一为 `slot_vfx`（去 `:1.1` 包装） |
-| `scene_node.py` | 372-384 | 删除 `weight` 取值与 `== 1.0` 分支，恒返回纯标签 `content` |
+**判据**：对 `is_anima` / `weight` 做全文检索，逐个收敛——不要只改设计文档列出的行。以下为检索结果。
 
-注意 `combat_node.py:172` 不只是权重差异——SDXL 分支是 `(dynamic angle:1.3)`、anima 分支是 `dynamic angle`，纯标签化后统一取后者。
+`pose_node.py`（`is_anima` 定义于 166 行，共 5 处使用）：
+
+| 行 | 现状 | 改动 |
+|---|---|---|
+| 167 | `w_global = ":2)" if is_anima else ":1.2)"` | 删除 |
+| 310 | `f"({parts['global']}{w_global}"` | → `parts["global"]` |
+| 291 | `"neutral expression" if is_anima else "(neutral expression:1.0)"` | → `"neutral expression"` |
+| 298-302 | `if is_anima:` 把 tags 里的 `_` 替换成空格 | **见 3.4.1（需定夺）** |
+| 324 | `", detailed fingers" if is_anima else ", (detailed fingers:1.1)"` | → `", detailed fingers"` |
+
+`combat_node.py`（`is_anima` 定义于 138 行，共 5 处使用）：
+
+| 行 | 现状 | 改动 |
+|---|---|---|
+| 172 | 相机：`"motion blur, depth of field, dynamic angle"` vs `"... (dynamic angle:1.3)"` | 统一取前者 |
+| 187-190 | `"(combat mode:2), dynamic pose, intense atmosphere"` vs `"(combat mode:1.2), ..."` | → `"combat mode, dynamic pose, intense atmosphere"` |
+| 197 | `f"({slot_weapon}:{'2' if is_anima else '1.2'})"` | → `slot_weapon` |
+| 204 | `slot_vfx if is_anima else f"({slot_vfx}:1.1)"` | → `slot_vfx` |
+
+`scene_node.py`（372-384）：
+
+| 行 | 现状 | 改动 |
+|---|---|---|
+| 372 | `weight = kwargs["08_环境总权重"]` | 删除 |
+| 380-384 | `if weight == 1.0: return (content,)` / `else: return (f"({content}:{weight:g})",)` | 合并为恒返回 `(content,)` |
+
+#### 3.4.1 pose 的下划线处理（已定夺）
+
+`pose_node.py:298-302` 的 `if is_anima:` 分支不只是权重——它把 tags 里的下划线替换成空格（`spread_eagle` → `spread eagle`），而 SDXL 分支保留下划线。这是**标签格式差异，不是权重差异**，删掉 `模型类型` 后必须二选一，无法「不写死」。
+
+**决定：统一转空格（即原 anima 行为）。** 把 `if is_anima:` 的条件去掉，for 循环无条件执行：
+
+```python
+for k in ("view", "global", "head", "expression"):
+    parts[k] = parts[k].replace("_", " ")
+parts["hands"] = [h.replace("_", " ") for h in parts["hands"]]
+parts["legs"] = [l.replace("_", " ") for l in parts["legs"]]
+```
+
+**注意：`character_node.py` 的内置权重不动。** 该节点没有 `模型类型` 控件，其权重（237、239、291、300、353、381 行的 `:1.2` / `:1.35` / `:1.1` 等）是本节点固有写法，与「模型类型切换」无关，不属于本次改动范围。唯一例外是 381 行的 `f"({shot_tag}:1.1)"`，它随 `31_构图范围` 一并删除。
 
 ### 3.5 文档同步
 
