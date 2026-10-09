@@ -107,6 +107,24 @@ try:
 except Exception as e:
     print(f"❌ 千绘 多LoRA XY网格模块加载失败: {e}")
 
+# 11. Latent 智能修复模块
+try:
+    from .nodes.qianhui_latent_yolo import QianhuiLatentYOLO
+    NODE_CLASS_MAPPINGS["QianhuiLatentYOLO"] = QianhuiLatentYOLO
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiLatentYOLO"] = "千绘 · Latent智能修复 (YOLO+SAM+CN V6.11.3)"
+except Exception as e:
+    print(f"❌ 千绘 Latent修复模块加载失败: {e}")
+
+# 12. 水印模块
+try:
+    from .nodes.qianhui_watermark import QianhuiWatermarkAdd, QianhuiWatermarkExtract
+    NODE_CLASS_MAPPINGS["QianhuiWatermarkAdd"] = QianhuiWatermarkAdd
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiWatermarkAdd"] = "千绘 · 水印添加"
+    NODE_CLASS_MAPPINGS["QianhuiWatermarkExtract"] = QianhuiWatermarkExtract
+    NODE_DISPLAY_NAME_MAPPINGS["QianhuiWatermarkExtract"] = "千绘 · 水印提取"
+except Exception as e:
+    print(f"❌ 千绘 水印模块加载失败: {e}")
+
 # 8b. 前端联动数据路由（注册失败不影响其余节点）
 WEB_DIRECTORY = "./js"
 try:
