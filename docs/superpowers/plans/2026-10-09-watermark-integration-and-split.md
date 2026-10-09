@@ -18,7 +18,8 @@
 - 源目录 `E:\comfuyui 插件\水印\` **保留不动**，只读取、不修改、不删除。
 - 拆分期间**不改方法体文本**：只改所在文件、`self` 前缀（原本就是 `self.`）、缩进层级语义。原注释（含 `# V6.11.3修复：` 等）随代码搬走，不删不改写。
 - YOLO/水印节点的输入参数名保持原样（YOLO 用中文参数名，水印用英文参数名）。
-- 测试用 `unittest`，不用 pytest。运行方式：`python tests/xxx.py` 或 `python -m unittest discover -s tests -p "test_*.py"`。
+- 测试用 `unittest`，不用 pytest。运行方式：`python -X utf8 tests/xxx.py` 或 `python -X utf8 -m unittest discover -s tests -p "test_*.py"`。
+- **所有测试命令必须带 `-X utf8`**：本机控制台是 gbk，而 `nodes/character_node.py:61` 在导入时打印 `⏳`，不加会以 `UnicodeEncodeError` 失败（表现为 `FAILED (errors=N)`，不是断言失败）。
 - 每个 commit 结尾加 `Co-Authored-By: Claude Code <noreply@anthropic.com>`。
 - 只有 `algorithms.py`（水印侧无）保持**无包内导入**，以便单测按路径直载；其余模块可用相对导入。
 
@@ -387,7 +388,7 @@ if __name__ == "__main__":
 
 - [ ] **步骤 3：跑测试，确认失败**
 
-Run: `python tests/test_watermark.py`
+Run: `python -X utf8 tests/test_watermark.py`
 Expected: FAIL——`FileNotFoundError` 或 `ModuleNotFoundError: No module named 'qh_watermark.dct'`（因为模块还没建）。
 
 - [ ] **步骤 4：按层拆出 6 个模块**
@@ -457,7 +458,7 @@ __all__ = [
 
 - [ ] **步骤 7：跑测试，确认通过**
 
-Run: `python tests/test_watermark.py`
+Run: `python -X utf8 tests/test_watermark.py`
 Expected: `OK`，13 个用例全过。
 
 - [ ] **步骤 8：补节点层测试**
@@ -466,49 +467,76 @@ Expected: `OK`，13 个用例全过。
 
 ```python
 class TestNodes(unittest.TestCase):
-    def _tensor(self, h=256, w=256):
-        import torch
-        rng = np.random.default_rng(3)
-        arr = rng.integers(0, 256, (1, h, w, 3), dtype=np.uint8)
-        return torch.from_numpy(arr.astype(np.float32) / 255.0)
+    """节点层测试。
+
+    输入、断言、边界值**照搬源测试** `水印/test_watermark.py` 中同名用例，
+    只把导入方式从 `from watermark_nodes import X` 改为包路径 `qh_watermark.nodes`。
+    不要重写输入或收紧边界——源测试的边界是实测出来的，凭空收紧会变成不可满足的断言。
+    """
 
     def test_node_watermarkadd_text(self):
+        import torch
         from qh_watermark.nodes import QianhuiWatermarkAdd
         node = QianhuiWatermarkAdd()
-        original, out = node.apply_watermark(
-            self._tensor(), "文字", "© Test", 0.4, 60, -30, 28, "#FFFFFF"
+        # ComfyUI IMAGE tensor: (B, H, W, C) float32 0-1
+        img = torch.zeros(1, 64, 64, 3)
+        original, watermarked = node.apply_watermark(
+            image=img, watermark_type="文字", text="TEST © 2026",
+            opacity=0.5, spacing=30, rotation=-30, font_size=16, color="#FFFFFF",
         )
-        self.assertEqual(tuple(original.shape), (1, 256, 256, 3))
-        self.assertEqual(tuple(out.shape), (1, 256, 256, 3))
-        self.assertFalse(bool((original == out).all()))
+        self.assertEqual(tuple(original.shape), (1, 64, 64, 3))
+        self.assertEqual(tuple(watermarked.shape), (1, 64, 64, 3))
+        # 原图应未被修改
+        self.assertTrue(torch.equal(original, img), "original image was modified")
 
     def test_node_watermarkadd_invisible(self):
+        import torch
         from qh_watermark.nodes import QianhuiWatermarkAdd
         node = QianhuiWatermarkAdd()
-        _orig, out = node.apply_watermark(
-            self._tensor(512, 512), "隐形文字", "版权 2026", 0.3, 100, -30, 36, "#FFFFFF"
+        rng = np.random.default_rng(7)
+        arr = rng.random((1, 512, 512, 3)).astype(np.float32)
+        img = torch.from_numpy(arr)
+        original, watermarked = node.apply_watermark(
+            image=img, watermark_type="隐形文字", text="copyright",
+            opacity=0.3, spacing=100, rotation=-30, font_size=36, color="#FFFFFF",
         )
-        max_diff = float((out - self._tensor(512, 512)).abs().max())
-        self.assertLess(max_diff, 0.2, f"隐形水印改动过大: {max_diff}")
+        self.assertFalse(torch.equal(original, watermarked),
+                         "invisible watermark had no effect")
+        diff = (original - watermarked).abs().max().item()
+        # 边界 0.40 照搬源测试；实测约 0.21
+        # （源测试行尾注释里的 "actual max ~0.07" 是失效的实测记录，不要照搬）
+        self.assertLess(diff, 0.40, f"Invisible watermark caused large pixel diff: {diff}")
 
     def test_node_watermarkextract_roundtrip(self):
+        import torch
         from qh_watermark.nodes import QianhuiWatermarkAdd, QianhuiWatermarkExtract
-        img = self._tensor(512, 512)
-        _orig, marked = QianhuiWatermarkAdd().apply_watermark(
-            img, "隐形文字", "版权 2026", 0.3, 100, -30, 36, "#FFFFFF"
+        add = QianhuiWatermarkAdd()
+        extract = QianhuiWatermarkExtract()
+        rng = np.random.default_rng(99)
+        arr = rng.random((1, 256, 256, 3)).astype(np.float32)
+        img = torch.from_numpy(arr)
+        text = "hello 水印"
+        _orig, watermarked = add.apply_watermark(
+            image=img, watermark_type="隐形文字", text=text,
+            opacity=0.3, spacing=100, rotation=-30, font_size=36, color="#FFFFFF",
         )
-        (text,) = QianhuiWatermarkExtract().extract_watermark(marked)
-        self.assertEqual(text, "版权 2026")
+        (extracted_text,) = extract.extract_watermark(image=watermarked)
+        self.assertEqual(extracted_text, text)
 
     def test_node_watermarkextract_no_wm(self):
+        import torch
         from qh_watermark.nodes import QianhuiWatermarkExtract
-        (text,) = QianhuiWatermarkExtract().extract_watermark(self._tensor(512, 512))
-        self.assertEqual(text, "")
+        extract = QianhuiWatermarkExtract()
+        img = torch.zeros(1, 128, 128, 3)
+        (result,) = extract.extract_watermark(image=img)
+        self.assertEqual(result, "")
 ```
+
+⚠ **算法层的 13 个用例同理**：源文件里已存在的用例，其输入、断言、边界值一律照搬，只改导入方式与组织成 `unittest` 类。**不要凭空收紧任何边界**——源测试的边界是实测校准过的（例：隐形水印像素差边界是 0.40 而非 0.2）。若某条断言在照搬后失败，说明移植出错，应查移植而不是改断言。
 
 - [ ] **步骤 9：跑全部水印测试**
 
-Run: `python tests/test_watermark.py`
+Run: `python -X utf8 tests/test_watermark.py`
 Expected: `OK`，17 个用例全过。
 
 - [ ] **步骤 10：搬入测试素材**
@@ -661,7 +689,7 @@ if __name__ == "__main__":
 
 - [ ] **步骤 2：跑测试，确认失败**
 
-Run: `python tests/test_latent_algorithms.py`
+Run: `python -X utf8 tests/test_latent_algorithms.py`
 Expected: FAIL——`FileNotFoundError`（`algorithms.py` 尚未创建）。
 
 - [ ] **步骤 3：搬入 `algorithms.py`**
@@ -677,11 +705,11 @@ import torch
 import torch.nn.functional as F
 ```
 
-搬完后运行 `python -c "import ast,io; ast.parse(io.open('nodes/qianhui_latent_yolo/algorithms.py',encoding='utf-8').read())"` 确认语法。若 `LatentAlgorithms` 用到未列出的符号（如 `gc`），补上对应 import——**判据是文件里出现的名字，不是猜测**。
+搬完后运行 `python -X utf8 -c "import ast,io; ast.parse(io.open('nodes/qianhui_latent_yolo/algorithms.py',encoding='utf-8').read())"` 确认语法。若 `LatentAlgorithms` 用到未列出的符号（如 `gc`），补上对应 import——**判据是文件里出现的名字，不是猜测**。
 
 - [ ] **步骤 4：跑测试，确认通过**
 
-Run: `python tests/test_latent_algorithms.py`
+Run: `python -X utf8 tests/test_latent_algorithms.py`
 Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运中被动过——对照源文件修正，**不要改断言**。
 
 - [ ] **步骤 5：搬入其余支撑模块**
@@ -846,7 +874,7 @@ Expected: 各文件打印定义数，末行 `algorithms.py 无相对导入 OK`�
 
 - [ ] **步骤 10：跑全部单测**
 
-Run: `python -m unittest discover -s tests -p "test_*.py"`
+Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
 Expected: `OK`，不少于 21（原有）+ 17（水印）+ 12（算法）= 50 个用例。
 
 - [ ] **步骤 11：用户跑基准图比对（首次）**
@@ -1094,7 +1122,7 @@ Expected: 各文件行数打印；`process()` 行数 ≤ 15。
 
 - [ ] **步骤 7：跑全部单测**
 
-Run: `python -m unittest discover -s tests -p "test_*.py"`
+Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
 Expected: `OK`，仍是 50 个用例。
 
 - [ ] **步骤 8：用户跑基准图比对（关键检查点）**
@@ -1192,7 +1220,7 @@ class TestPresets(unittest.TestCase):
 
 - [ ] **步骤 2：跑测试，确认失败**
 
-Run: `python tests/test_latent_algorithms.py`
+Run: `python -X utf8 tests/test_latent_algorithms.py`
 Expected: FAIL——`FileNotFoundError`（`presets.py` 未创建）。
 
 - [ ] **步骤 3：写 `presets.py`**
@@ -1284,7 +1312,7 @@ def as_payload() -> dict:
 
 - [ ] **步骤 4：跑测试，确认通过**
 
-Run: `python tests/test_latent_algorithms.py`
+Run: `python -X utf8 tests/test_latent_algorithms.py`
 Expected: `OK`，17 个用例全过（原 12 + 预设 5）。
 
 - [ ] **步骤 5：在 `parse_config` 末尾接上预设**
@@ -1417,7 +1445,7 @@ API 路径：用 `[不使用预设]` 存一份工作流，改为 `快速模式(�
 
 - [ ] **步骤 11：跑全部单测 + 提交**
 
-Run: `python -m unittest discover -s tests -p "test_*.py"`
+Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
 Expected: `OK`，不少于 55 个用例。
 
 ```bash
@@ -1488,7 +1516,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 ## 完成标准
 
-- [ ] `python -m unittest discover -s tests -p "test_*.py"` 全绿，且用例数 ≥ 55
+- [ ] `python -X utf8 -m unittest discover -s tests -p "test_*.py"` 全绿，且用例数 ≥ 55
 - [ ] ComfyUI 启动日志中出现 `千绘 · Latent智能修复 (YOLO+SAM+CN V6.11.3)`、`千绘 · 水印添加`、`千绘 · 水印提取`，无 ❌
 - [ ] 用户基准图比对：场景 A-E 全部与 `docs/superpowers/baseline/` 完全一致
 - [ ] `配置预设` 在浏览器与 API 两条路径下均生效

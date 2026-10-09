@@ -16,9 +16,10 @@
 - 改名规则：只去掉开头的「数字 + 可选小写字母 + 下划线」，其余原样保留（含 emoji、内层下划线、斜杠）。
 - 被删控件的功能**不做替代**，相关输出段一并去掉。
 - `character_node.py` 的**内置权重不动**（237、239、291、300、353 行的 `:1.2`/`:1.35`/`:1.1` 等）——该节点没有 `模型类型` 控件，这些权重与「模型类型切换」无关。唯一例外是 381 行随 `31_构图范围` 删除的 `f"({shot_tag}:1.1)"`。
-- 测试用 `unittest`，不用 pytest。运行：`python tests/test_node_widgets.py` 或 `python -m unittest discover -s tests -p "test_*.py"`。
+- 测试用 `unittest`，不用 pytest。运行：`python -X utf8 tests/test_node_widgets.py` 或 `python -X utf8 -m unittest discover -s tests -p "test_*.py"`。
+- **所有测试命令必须带 `-X utf8`**：本机控制台是 gbk，而 `nodes/character_node.py:61` 在导入时打印 `⏳`，不加会以 `UnicodeEncodeError` 失败（表现为 `FAILED (errors=N)`，不是断言失败）。
 - 每个 commit 结尾加 `Co-Authored-By: Claude Code <noreply@anthropic.com>`。
-- 测试前先确认既有测试仍全绿（基线）：`python -m unittest discover -s tests -p "test_*.py"` → 21 个用例 OK。
+- 测试前先确认既有测试仍全绿（基线）：`python -X utf8 -m unittest discover -s tests -p "test_*.py"` → 21 个用例 OK。
 
 ## 待删控件清单
 
@@ -180,7 +181,7 @@ if __name__ == "__main__":
 
 - [ ] **步骤 2：跑测试，确认失败**
 
-Run: `python tests/test_node_widgets.py`
+Run: `python -X utf8 tests/test_node_widgets.py`
 Expected: FAIL——`test_all_keys_have_no_prefix` 报出 67 个带前缀的键。
 
 - [ ] **步骤 3：执行脚本化改名**
@@ -231,14 +232,14 @@ Expected: 每个文件打印逐键替换处数；`character_node.py` 约 70+ 处
 
 - [ ] **步骤 4：跑测试，确认通过**
 
-Run: `python tests/test_node_widgets.py`
+Run: `python -X utf8 tests/test_node_widgets.py`
 Expected: `OK`，3 个用例全过。
 
 若 `test_source_has_no_old_key_leftovers` 失败，说明某个引用用了单引号 `'09_模型类型'` 或变量拼接。按失败信息定位，手工补齐——**不要改测试**。
 
 - [ ] **步骤 5：跑全量测试，确认无回归**
 
-Run: `python -m unittest discover -s tests -p "test_*.py"`
+Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
 Expected: `OK`，24 个用例（原 21 + 新 3）。
 
 - [ ] **步骤 6：手工核对界面**
@@ -354,7 +355,7 @@ class TestPureTagOutput(unittest.TestCase):
 
 - [ ] **步骤 2：跑测试，确认失败**
 
-Run: `python tests/test_node_widgets.py`
+Run: `python -X utf8 tests/test_node_widgets.py`
 Expected: FAIL——`test_deleted_widgets_absent` 报出 8 个仍存在的控件；`test_*_no_anima_branch_left` 因 `is_anima` 仍在而失败。
 
 - [ ] **步骤 3：改 `character_node.py`**
@@ -524,14 +525,14 @@ Expected: FAIL——`test_deleted_widgets_absent` 报出 8 个仍存在的控件
 
 - [ ] **步骤 7：跑测试，确认通过**
 
-Run: `python tests/test_node_widgets.py`
+Run: `python -X utf8 tests/test_node_widgets.py`
 Expected: `OK`，11 个用例全过（Task 1 的 3 个 + 本任务 8 个）。
 
 若 `test_no_weight_syntax_in_output` 在 `character` 上失败，**先确认失败的是不是内置权重**（如 `(rating: safe:1.2)`、`(medium breasts:1.35)`）——那些**不在本次改动范围**，应把断言收窄为只检查本次改动的 3 个节点（`pose`/`scene`/`combat`），而不是去改 character 的内置权重。
 
 - [ ] **步骤 8：跑全量测试**
 
-Run: `python -m unittest discover -s tests -p "test_*.py"`
+Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
 Expected: `OK`，32 个用例（原 21 + 新增 11）。
 
 - [ ] **步骤 9：手工核对界面与输出**
@@ -607,7 +608,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 ## 完成标准
 
-- [ ] `python -m unittest discover -s tests -p "test_*.py"` 全绿，用例数 ≥ 32
+- [ ] `python -X utf8 -m unittest discover -s tests -p "test_*.py"` 全绿，用例数 ≥ 32
 - [ ] 4 个节点的 `INPUT_TYPES` 键名无数字前缀（正则 `^\d+[a-z]?_` 无匹配）
 - [ ] 8 个被删控件在界面上消失，其余控件顺序不变
 - [ ] `pose_node.py` / `combat_node.py` 源码不含 `is_anima`
