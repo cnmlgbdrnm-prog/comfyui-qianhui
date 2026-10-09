@@ -1480,7 +1480,42 @@ class TestPresets(unittest.TestCase):
         # 反向：FIELD_OF 里的每个字段也必须是真字段（防拼错）
         for widget_key, field_name in pres.FIELD_OF.items():
             self.assertIn(field_name, real, f"FIELD_OF['{widget_key}'] 指向不存在的字段")
+
+    def test_parse_config_mounts_preset_from_kwargs_not_cfg(self):
+        """★ 选择路径：预设名必须从 `kwargs` 取，**不能**从 `cfg` 取。
+
+        为什么需要这条：`配置预设` 是控件（`node.py:97`），但 `process()` **从不读它**，
+        所以它**不在** `YoloConfig` 的 99 个字段里 —— 实测 `配置预设` 在
+        `mixins/context.py` 里出现 **0** 次。于是
+        `getattr(cfg, "配置预设", None)` **恒为 None**，`or "[不使用预设]"` 恒取到
+        `NO_PRESET`，`apply_preset` 第一句就 `return`：面板能用、切了没反应、**不报错**。
+
+        上面那几条用例全都**直接**调 `apply_preset(cfg, name)`，跳过了这次查找，
+        所以一条都抓不到它。这条必须静态钉住调用点的实参形态。
+        """
+        src = io.open(
+            os.path.join(pkgs_dir("qianhui_latent_yolo"),
+                         "mixins", "pipeline", "prepare.py"),
+            encoding="utf-8",
+        ).read()
+        calls = [
+            n for n in ast.walk(ast.parse(src))
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name) and n.func.id == "apply_preset"
+        ]
+        self.assertEqual(
+            len(calls), 1,
+            f"prepare.py 里 apply_preset 的调用点应为 1 个，实为 {len(calls)}",
+        )
+        arg = ast.unparse(calls[0].args[1])
+        self.assertIn("kwargs", arg, f"预设名没从 kwargs 取：{arg}")
+        self.assertNotIn("getattr", arg,
+                         f"预设名绕道 cfg 取了，而 cfg 里没有这个字段、恒为 None：{arg}")
 ```
+
+> 上面这个类用到 `ast` / `io` / `os`，以及 `_loader` 的 `pkgs_dir` 与 `load_module`；
+> `tests/test_latent_algorithms.py` 顶部现有的 import 已覆盖（缺哪个补哪个，不要重复导入）。
+> 本类共 **7** 条用例（原 6 条 + 本条）。
 
 - [ ] **步骤 2：跑测试，确认失败**
 
@@ -1624,20 +1659,41 @@ def as_payload() -> dict:
 - [ ] **步骤 4：跑测试，确认通过**
 
 Run: `python -X utf8 tests/test_latent_algorithms.py`
-Expected: `OK`，**17 个用例**全过（原有 **11** + 本次新增 **6**）。
+Expected: `OK`，**18 个用例**全过（原有 **11** + 本次新增 **7**）。
 
 > 早期版本写「原 12 + 预设 5」——两处都不对：`tests/test_latent_algorithms.py` 里原有 **11** 个（不是 12），本次新增的是 **6** 个（不是 5）。17 这个总数碰巧是对的，但拆分写错了，后面加用例时别按错的基数推。
+>
+> **后记**：上面这条「6」后来又被 +1 成 **7** —— 追加了 `test_parse_config_mounts_preset_from_kwargs_not_cfg`（预设**选择路径**的守卫，见步骤 1 末尾）。故现在是 **11 + 7 = 18**，全量 **61 + 7 = 68**。
 
 - [ ] **步骤 5：在 `parse_config` 末尾接上预设**
 
 在 `pipeline/prepare.py` 的 `parse_config` 返回前插入：
 
 ```python
-    from ...presets import apply_preset
-    apply_preset(cfg, getattr(cfg, "配置预设", None) or "[不使用预设]")
+    from ...presets import apply_preset, NO_PRESET
+    # 预设名从 kwargs 取，**不是**从 cfg 取 —— 见下方警告。
+    apply_preset(cfg, kwargs.get("配置预设") or NO_PRESET)
 ```
 
+> ⚠️ **必须从 `kwargs` 读预设名，不能从 `cfg` 读。**
+> 早期版本写的是 `apply_preset(cfg, getattr(cfg, "配置预设", None) or "[不使用预设]")`
+> —— **那一版会静默失效**，与本任务早先修掉的「预设表键空间错位」是同一个失败模式，
+> 而且更隐蔽：`配置预设` 这个控件声明在 `node.py:97`，但 `process()` **从不读它**，
+> 所以它**不在** `YoloConfig` 的 99 个字段里（实测：`配置预设` 在 `mixins/context.py`
+> 里出现 **0** 次）。于是 `getattr(cfg, "配置预设", None)` **恒为 `None`**，
+> `or "[不使用预设]"` 恒取到 `NO_PRESET`，`apply_preset` 第一句就 `return` ——
+> 面板能用、切了没反应、不报错。
+>
+> 控件值走的是 `kwargs`（ComfyUI 把 widget 值并入 kwargs 传给 `process`），
+> `parse_config(kwargs)` 手里就有一份，**直接 `kwargs.get` 即可**，不要绕道 `cfg`。
+> 同时用 `NO_PRESET` 常量而不是字面量 `"[不使用预设]"`，避免将来改哨兵值漏改这一处。
+
 **相对导入层级按实际目录调整**（`prepare.py` 在 `mixins/pipeline/` 下，指向 `qianhui_latent_yolo/presets.py` 需三层 `.`）。若层级不确定，改用绝对式 `from nodes.qianhui_latent_yolo.presets import apply_preset` 会失败（`nodes/` 是命名空间包且父包 `__init__` 依赖 ComfyUI），所以**必须用相对导入**，写完后用步骤 6 验证。
+
+> ⚠️ **这里的三层点不是随口说的，是任务 4 审查里一条 Critical 的直接教训**：
+> `mixins/pipeline/` 下的模块写成 `..algorithms` 会解析到 `mixins.algorithms`（不存在），
+> 而 `algorithms.py` 在 `qianhui_latent_yolo/` 下，必须写 `...algorithms`。
+> 已实测：`...presets` 指向 `qianhui_latent_yolo/presets.py` —— 三层，对。
 
 - [ ] **步骤 6：验证导入层级正确**
 
@@ -1761,7 +1817,7 @@ API 路径：用 `[不使用预设]` 存一份工作流，改为 `快速模式(�
 - [ ] **步骤 11：跑全部单测 + 提交**
 
 Run: `python -X utf8 -m unittest discover -s tests -p "test_*.py"`
-Expected: `OK`，**67 个用例**（实测基数：本任务开工前 61 + 本次新增 6）。
+Expected: `OK`，**68 个用例**（实测基数：本任务开工前 61 + 本次新增 7）。
 
 > 早期版本写「不少于 55」，是拍出来的数。`discover` 会跑整个 `tests/`，按实测写，别按算式推。
 
