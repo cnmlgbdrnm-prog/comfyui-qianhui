@@ -363,12 +363,19 @@ class TestCfgReadClosure(unittest.TestCase):
     拆成 4 个节点之前先把网建好：拆完之后每个节点的控件表要跟这张网对账，
     否则「某个旋钮在界面上消失」不会有任何测试变红，只能靠肉眼看出来。
 
-    依赖关系（复审 C-3 订正，别再照旧说法传下去）：
-      - 用例 1~4、7 **不碰 node.py**；
-      - 用例 5（`_latent_node_widget_decls()`）与用例 6（同上）**依赖 node.py**，
-        T13 删单体时预期要跟着改；
-      - 用例 7 依赖的是 `STAGE_MODULES` 的计数，与 node.py 无关，
+    T13 删单体时要改**哪几条** —— 按**方法名**列，不要按编号：
+    本类的方法顺序与简报里的编号**并不一致**（`test_context_key_pairing_is_pinned`
+    是复审后补的，插在中间），照位置数会数出相反的结论。
+
+      - 依赖 `node.py` 的两条（实测：删掉 node.py 只红这两条）：
+          `test_every_mapped_widget_exists_and_is_unique`
+          `test_widgets_without_a_config_field_are_exactly_the_known_set`
+        T13 删单体时预期要跟着改。
+      - 依赖 `STAGE_MODULES` 计数的一条，与 node.py 无关：
+          `test_cfg_access_counts_are_frozen`
         T4/T12/T13 改阶段读取逻辑时预期要跟着改。
+      - 其余各条都不碰 node.py，拆完之后依然成立。
+
     刻意分成独立方法、不揉成一条，就是为了让 T13 能按条改。
     """
 
