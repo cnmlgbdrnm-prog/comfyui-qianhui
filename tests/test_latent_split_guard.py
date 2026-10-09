@@ -13,6 +13,12 @@
 「哪个阶段读哪些 `cfg.<字段>`」推出来的，推错了的症状是某个旋钮在界面上
 消失而没有任何测试变红，所以先用 AST 把字段表 ↔ 解析器写入 ↔ 阶段读取
 ↔ 控件这四张表双向闭合起来。
+
+`TestSlimContexts` 那一组是拆分的**第三层地基**（T6）：4 个精简 Context 的
+字段归属。它护的是「静默失效」里最阴的一种 —— 某个 `ctx.` 字段**在 4 个
+Context 里都没有家**，那个节点就会在运行期 `AttributeError`；`slots=True`
+会当场炸，但**只在该分支被走到时才炸**，界面上旋钮还在、改了没用、平时不报错。
+所以这里把「字段归属」用 AST 与阶段模块的真实读取双向闭合起来。
 """
 import ast
 import io
@@ -746,6 +752,268 @@ class TestNodesUseSharedCache(unittest.TestCase):
         两个变异对照组（改回直接构造、在 `__init__` 末尾再赋一处）见 task-5 报告。
         """
         _assert_node_uses_shared_cache(self, NODE_PY, "QianhuiLatentYOLO")
+
+
+# ==================== 4 个精简 Context 的字段归属（T6） ====================
+#
+# 拆成 4 个节点后每个节点只该看见自己那部分字段。这既是隔离，也是一张网：
+# 字段的归属由「哪个阶段真的读它」机检得来，不是手抄的清单 —— 手抄会漏，
+# 而漏掉的字段在运行期**只在该分支被走到时**才炸（`slots=True` 让写未声明属性
+# 当场 AttributeError，但读一个不存在的槽同样只在那一刻才炸）。
+#
+# ★ 三条不变量（各自有能杀它的变异，见 task-6 报告 §6）：
+#   1. 每个 Context 的 slots ⊇ 它那一组来源的读取集（少了 → 运行期炸）
+#   2. ★★ 四个 Context 的并集 == 所有阶段读到的 `ctx.` 字段并集（应为 50）
+#      —— 这是最重要的一条：任一字段在 4 个 Context 里**都没家** ⇒ 当场红。
+#   3. 反向：Context 里没有谁读的 slot = 死字段。
+
+# 每个精简 Context 的**来源**：它归哪个节点的哪些阶段函数读的 `ctx.` 字段。
+# `func=None` 表示整个模块（那几个模块只有一个入口函数）。
+# 归属依据：`finalize_interrupt`（中断回填）与 `build_preview` 归节点 A，
+# `build_masks` 归 C、`build_info` 归 D；`report.py:build_report` 那个编排壳是
+# 过渡态（T13 拆掉），它的读取是这四组的子集，**不单独喂给任何 Context**。
+CONTEXT_SOURCES = {
+    "DetectCtx": (
+        ("detect.py", None),
+        ("report.py", "finalize_interrupt"),
+        ("report_bits.py", "build_preview"),
+    ),
+    "SamCtx": (("sam_refine.py", None),),
+    "RepairCtx": (
+        ("repair.py", None),
+        ("report_bits.py", "build_masks"),
+    ),
+    "GlobalCtx": (
+        ("global_pass.py", None),
+        ("report_bits.py", "build_info"),
+    ),
+}
+
+# T6 机检实测的字段数与并集：41 / 3 / 28 / 27，并集 50 = YoloRunContext 的字段数。
+#
+# ★ 这是**反空转**的绊线：某个来源模块被改名/搬走时 `_ctx_reads` 会算出空集，
+#   下面的包含式断言（差集 ⊆ 空集）会**空转通过**，只有这里会让「读到 0 个」当场红。
+#   预期会触发它的改动：T8~T11 各节点接线（读法变了）、T13 删 prepare_run/单体。
+#   改动时先确认是真改了归属，并在**同一个提交**里说明为什么。
+EXPECTED_CTX_FIELD_COUNTS = {
+    "DetectCtx": 41,
+    "SamCtx": 3,
+    "RepairCtx": 28,
+    "GlobalCtx": 27,
+}
+EXPECTED_CTX_UNION = 50
+
+CONTEXT_PY = os.path.join(pkgs_dir("qianhui_latent_yolo"), "mixins", "context.py")
+
+
+def _ctx_reads(module_path, func=None):
+    """AST 取 `ctx.<字段>` 的 **Load** 集合；func=None 表示整个模块。
+
+    与 `_cfg_access` 的区别：那个取的是 **cfg** 字段（`cfg.x` / `ctx.cfg.x`），
+    这个取的是 **ctx** 字段（`ctx.x`）。两者互不覆盖，是两套网。
+
+    ★ 同样**不 import**（这些模块需要 comfy 运行时），只 `ast.parse`。
+      也**必须区分 Load 与 Store**：`prepare.py` 那一堆是「写」（填 ctx 字段），
+      各阶段模块的才是「读」。不区分的话两个方向会算成一个。
+
+    ★ `ctx.cfg` **算**一次 `cfg` 槽的读取：`ctx.cfg.<旋钮>` 的 AST 里，
+      内层 `ctx.cfg` 就是一个独立的 Load 节点，而 `cfg` 在 `YoloRunContext` 里
+      也是一个真槽（4 个阶段都要它）。把它滤掉会让并集少 1、`cfg` 看起来
+      「4 个 Context 里都没有家」—— 那是**假红**。
+
+    ★ 只认基底是**裸名 `ctx`** 的属性；`self.ctx.x` / `payload.ctx.x` 一律不算 ——
+      与 `_cfg_access` 对 `self.cfg` 的处理同一理由（免得造出指名 Fake 字段的假红）。
+    """
+    with io.open(module_path, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    if func is None:
+        roots = [tree]
+    else:
+        roots = [
+            n for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and n.name == func
+        ]
+        assert roots, "%s 里找不到函数 %s（改名/搬走了？）" % (module_path, func)
+    out = set()
+    for root in roots:
+        for node in ast.walk(root):
+            if not isinstance(node, ast.Attribute):
+                continue
+            if not isinstance(node.ctx, ast.Load):
+                continue
+            if isinstance(node.value, ast.Name) and node.value.id == "ctx":
+                out.add(node.attr)
+    return out
+
+
+def _context_classdefs():
+    """context.py 里的 {类名: ClassDef}（ast，不 import）。"""
+    with io.open(CONTEXT_PY, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    return {n.name: n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)}
+
+
+def _slim_context_slots():
+    """{类名: set(字段名)}，从 context.py 的 ClassDef 取 AnnAssign 目标。"""
+    defs = _context_classdefs()
+    out = {}
+    for name in CONTEXT_SOURCES:
+        cls = defs.get(name)
+        assert cls is not None, "context.py 里找不到类 %s（T6 的 4 个精简 Context）" % name
+        out[name] = {
+            st.target.id
+            for st in cls.body
+            if isinstance(st, ast.AnnAssign) and isinstance(st.target, ast.Name)
+        }
+    return out
+
+
+def _context_source_reads(class_name):
+    """某个 Context 那一组来源读到的 `ctx.` 字段并集。"""
+    reads = set()
+    for module, func in CONTEXT_SOURCES[class_name]:
+        reads |= _ctx_reads(os.path.join(PIPELINE_DIR, module), func)
+    return reads
+
+
+def _all_stage_ctx_reads():
+    """7 个阶段模块读到的 `ctx.` 字段并集（并集 2 的右端）。"""
+    reads = set()
+    for name in STAGE_MODULES:
+        reads |= _ctx_reads(os.path.join(PIPELINE_DIR, name))
+    return reads
+
+
+def _is_slots_dataclass(cls_node):
+    """ClassDef 的装饰器里有没有 `@dataclass(... slots=True ...)`。"""
+    for dec in cls_node.decorator_list:
+        if not isinstance(dec, ast.Call):
+            continue
+        f = dec.func
+        name = f.id if isinstance(f, ast.Name) else getattr(f, "attr", None)
+        if name != "dataclass":
+            continue
+        for kw in dec.keywords:
+            if kw.arg == "slots":
+                return isinstance(kw.value, ast.Constant) and kw.value.value is True
+    return False
+
+
+class TestSlimContexts(unittest.TestCase):
+    """T6：4 个精简 Context 的字段归属（三条不变量 + 反空转绊线 + slots 机制）。
+
+    拆成 4 个节点后共用的那个 50 字段 `YoloRunContext` 会被 T13 撤掉，
+    这 4 个类接管。字段归属错了的症状是：界面上旋钮还在、改了没用、不报错，
+    只在那条分支被走到时 AttributeError —— 所以先在这里闭合。
+    """
+
+    def test_each_context_covers_its_sources(self):
+        """不变量 1：每个 Context 的 slots ⊇ 它那一组来源读到的 `ctx.` 字段。
+
+        少了就是一个运行期的 AttributeError（`slots=True` 会当场炸，
+        但只在该分支被走到时才炸）—— 静态这里当场红。
+        """
+        slots = _slim_context_slots()
+        for name in sorted(CONTEXT_SOURCES):
+            missing = _context_source_reads(name) - slots[name]
+            self.assertEqual(
+                missing, set(),
+                "%s 少了这些槽：%s\n"
+                "  它们在 %s 里被读到，却没在 %s 里声明 —— "
+                "运行期会在那条分支上 AttributeError（界面上看不出问题）。"
+                % (name, sorted(missing), CONTEXT_SOURCES[name], name),
+            )
+
+    def test_every_slot_is_read_by_its_sources(self):
+        """不变量 3（反向）：Context 里没有谁读的 slot = **死字段**，也应报。
+
+        与 T2 用例 3（`test_every_config_field_is_read_by_some_stage`）同一思路：
+        声明了却没人读的槽，只会让下一个人以为「这个字段有用」。
+        """
+        slots = _slim_context_slots()
+        for name in sorted(CONTEXT_SOURCES):
+            dead = slots[name] - _context_source_reads(name)
+            self.assertEqual(
+                dead, set(),
+                "%s 里这些槽没有任何来源读过（死字段）：%s\n"
+                "  它的来源是 %s。要么归属写错了，要么该字段根本不该在这。"
+                % (name, sorted(dead), CONTEXT_SOURCES[name]),
+            )
+
+    def test_context_union_covers_every_ctx_field_read_by_any_stage(self):
+        """★★ 不变量 2：4 个 Context 的并集 == 所有阶段读到的 `ctx.` 字段并集（= 50）。
+
+        这是**最重要**的一条：任一字段在 4 个 Context 里**都没家** ⇒ 当场红。
+        这正是「静默失效」的形状 —— 那个节点会在运行期 AttributeError，
+        但只在该分支被走到时才炸；界面上旋钮还在、改了没用。
+
+        反向（并集里有、阶段没读）与不变量 3 重叠，这里一并断言，
+        消息里分开列出两个方向，好一眼看出是「漏装」还是「多装」。
+        """
+        slots = _slim_context_slots()
+        union = set()
+        for members in slots.values():
+            union |= members
+        stage_reads = _all_stage_ctx_reads()
+
+        self.assertEqual(
+            stage_reads - union, set(),
+            "这些 ctx 字段被阶段读到，却在 4 个 Context 里**都没有家**：%s\n"
+            "  ⇒ 拆出来的节点会在运行期 AttributeError（界面上旋钮还在，"
+            "改了没用、不报错）。" % sorted(stage_reads - union),
+        )
+        self.assertEqual(
+            union - stage_reads, set(),
+            "这些槽在某个 Context 里，却没有任何阶段读它：%s"
+            % sorted(union - stage_reads),
+        )
+
+    def test_context_field_counts_are_frozen(self):
+        """★ 反空转的网：4 个字段数与并集写死。
+
+        上面的包含式断言是「差集为空」：某个来源模块一旦解析不到（改名、搬走），
+        `_ctx_reads` 算出空集，它们会**空转通过**。这条把计数钉死，
+        让「读到 0 个」当场红。
+
+        ★ 改动这些数字**必须在同一个提交里说明为什么**
+        （预期触发者：T8~T11 各节点接线、T13 删 prepare_run/单体）。
+        """
+        slots = _slim_context_slots()
+        actual = {name: len(members) for name, members in slots.items()}
+        self.assertEqual(
+            actual, EXPECTED_CTX_FIELD_COUNTS,
+            "4 个精简 Context 的字段数变了（应为 41/3/28/27）。变动时：\n"
+            "  1) 先确认是真改了归属，而不是模块被改名/搬走、或解析失手；\n"
+            "  2) 在**同一个提交**里说明为什么，并同步 EXPECTED_CTX_FIELD_COUNTS。",
+        )
+        union = set()
+        for members in slots.values():
+            union |= members
+        self.assertEqual(
+            len(union), EXPECTED_CTX_UNION,
+            "4 个 Context 的并集应为 %d（= YoloRunContext 的字段数）。"
+            % EXPECTED_CTX_UNION,
+        )
+
+    def test_slim_contexts_are_slots_dataclasses(self):
+        """4 个类都带 `@dataclass(slots=True)` —— 这是「防笔误」的全部依据。
+
+        去掉 `slots=True` 不报错、不改结果，只是把「写错字段名」从
+        AttributeError 降级成**静默新建属性**：真字段一动不动，而拆出来的
+        4 个节点正是靠这层保护接线的。所以这条也得有人看着。
+        """
+        defs = _context_classdefs()
+        for name in sorted(CONTEXT_SOURCES):
+            cls = defs.get(name)
+            self.assertIsNotNone(cls, "context.py 里找不到类 %s" % name)
+            self.assertTrue(
+                _is_slots_dataclass(cls),
+                "%s 的装饰器不是 @dataclass(slots=True)（第 %d 行）。\n"
+                "  没有 slots，写错字段名会静默新建属性、真字段不动 —— "
+                "这正是本计划已经踩过一次的 Critical 形状。"
+                % (name, cls.lineno),
+            )
 
 
 if __name__ == "__main__":

@@ -2,9 +2,11 @@
 
 YoloConfig: 99 个 kwargs 解析结果，字段名与原局部变量名逐字一致，
            使阶段搬运成为机械替换（局部名 → cfg.局部名）。
-YoloRunContext: 跨阶段运行时状态 + cfg。
+YoloRunContext: 跨阶段运行时状态 + cfg（T6 起保留，T13 删单体时一并撤）。
+DetectCtx / SamCtx / RepairCtx / GlobalCtx: T6 新增的 4 个**精简 Context** ——
+           拆出的 4 个节点各拿自己那部分字段，见文件末尾。
 
-★ 两个类都带 `slots=True`，这不是性能优化，是**防笔误**：
+★ 所有类都带 `slots=True`，这不是性能优化，是**防笔误**：
    字段名是「原局部变量名逐字照搬」来的（`region_steps` / `region_step`、
    `handoff` / `hand_off` 这种一字之差肉眼极难发现）。普通 dataclass 上
    `ctx.region_step = 5` 会**静默新建一个属性**，真字段一动不动 ——
@@ -229,4 +231,151 @@ class YoloRunContext:
     detections: List[Any] = field(default_factory=list)
     preview_image: Any = None
     _decoded_np: Any = None
+    processed_latent: Any = None
+
+
+# ==================== 4 个精简 Context（T6，对应拆分后的 4 个节点） ====================
+#
+# 拆成 4 个节点后，每个节点只该看见**自己那部分**字段。这既是隔离，也是一张网：
+# 字段的归属由「哪个阶段真的读它」机检得来（AST 取 `ctx.<字段>` 的 Load 集），
+# 不是手抄的清单 —— 手抄会漏，而漏掉的字段在运行期**只在该分支被走到时**才炸。
+#
+# 归属（并集恰好 = YoloRunContext 的 50 个字段，一个不漏、一个不多）：
+#     DetectCtx ← detect.py ∪ report.py:finalize_interrupt ∪ report_bits.py:build_preview   = 41
+#     SamCtx    ← sam_refine.py                                                             =  3
+#     RepairCtx ← repair.py ∪ report_bits.py:build_masks                                    = 28
+#     GlobalCtx ← global_pass.py ∪ report_bits.py:build_info                                = 27
+#
+# 为什么这么归：`finalize_interrupt`（中断回填）与 `build_preview` 归节点 A，
+# `build_masks` 归 C、`build_info` 归 D；`report.py:build_report` 那个编排壳是过渡态，
+# T13 会拆掉，它的读取是上面四者的子集，**不单独喂给任何 Context**。
+#
+# ★ `cfg` 四个类都要：每个阶段都读 `ctx.cfg.<旋钮>`，它在 YoloRunContext 里也是一个槽。
+#   它不是 YoloConfig 字段（那些走 `ctx.cfg.<名>`），所以这里保留为**必填**槽，
+#   与 YoloRunContext 一致（无默认值）。
+#
+# ★ 字段名与默认值**逐字照抄** YoloRunContext（含中文名如 `模型`/`步数`）：
+#   默认值不同会改运行期行为。声明顺序也照抄，便于与 YoloRunContext 逐行对账。
+
+
+@dataclass(slots=True)
+class DetectCtx:
+    """节点 A 千绘·YOLO检测：detect.py ∪ report.py:finalize_interrupt ∪ report_bits.py:build_preview。"""
+
+    cfg: YoloConfig
+    模型: Any = None
+    VAE: Any = None
+    正面提示: Any = None
+    负面提示: Any = None
+    seed: int = 0
+    步数: int = 20
+    CFG: float = 8.0
+    采样器: str = 'euler'
+    调度器: str = 'normal'
+    降噪: float = 1.0
+    放大算法: str = 'latent_aware'
+    放大倍数: float = 1.0
+    yolo_models_to_use: List[str] = field(default_factory=list)
+    yolo_confidences_to_use: List[float] = field(default_factory=list)
+    has_cn: bool = False
+    has_hand_skeleton_cn: bool = False
+    class_rules: Any = None
+    target_classes: Any = None
+    samples: Any = None
+    batch_size: int = 0
+    out_device: Any = None
+    out_latents: Any = None
+    out_previews: List[torch.Tensor] = field(default_factory=list)
+    out_masks: List[torch.Tensor] = field(default_factory=list)
+    ksampler: Any = None
+    pbar: Any = None
+    processed_count: int = 0
+    original_samples: Any = None
+    i: int = 0
+    base_pos: Any = None
+    base_neg: Any = None
+    pos_full: Any = None
+    neg_full: Any = None
+    base_latent: Any = None
+    latent_for_detection: Any = None
+    latent_h: int = 0
+    latent_w: int = 0
+    pixel_h: int = 0
+    pixel_w: int = 0
+    detections: List[Any] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class SamCtx:
+    """节点 B 千绘·SAM精修：sam_refine.py。"""
+
+    cfg: YoloConfig
+    模型: Any = None
+    sam_model_path: Optional[str] = None
+
+
+@dataclass(slots=True)
+class RepairCtx:
+    """节点 C 千绘·区域修复：repair.py ∪ report_bits.py:build_masks。"""
+
+    cfg: YoloConfig
+    模型: Any = None
+    seed: int = 0
+    步数: int = 20
+    CFG: float = 8.0
+    采样器: str = 'euler'
+    调度器: str = 'normal'
+    降噪: float = 1.0
+    has_cn: bool = False
+    has_hand_skeleton_cn: bool = False
+    class_rules: Any = None
+    batch_size: int = 0
+    out_masks: List[torch.Tensor] = field(default_factory=list)
+    ksampler: Any = None
+    i: int = 0
+    base_pos: Any = None
+    base_neg: Any = None
+    pos_full: Any = None
+    neg_full: Any = None
+    latent_for_detection: Any = None
+    latent_h: int = 0
+    latent_w: int = 0
+    pixel_h: int = 0
+    pixel_w: int = 0
+    detection_mask: Any = None
+    detections: List[Any] = field(default_factory=list)
+    _decoded_np: Any = None
+    processed_latent: Any = None
+
+
+@dataclass(slots=True)
+class GlobalCtx:
+    """节点 D 千绘·全局降噪：global_pass.py ∪ report_bits.py:build_info。"""
+
+    cfg: YoloConfig
+    模型: Any = None
+    VAE: Any = None
+    seed: int = 0
+    步数: int = 20
+    CFG: float = 8.0
+    采样器: str = 'euler'
+    调度器: str = 'normal'
+    放大倍数: float = 1.0
+    perf_start_time: Any = None
+    batch_size: int = 0
+    out_device: Any = None
+    out_latents: Any = None
+    out_previews: List[torch.Tensor] = field(default_factory=list)
+    out_masks: List[torch.Tensor] = field(default_factory=list)
+    all_dets: List[Any] = field(default_factory=list)
+    ksampler: Any = None
+    frame_history: Any = None
+    interrupted: bool = False
+    processed_count: int = 0
+    i: int = 0
+    pos_full: Any = None
+    neg_full: Any = None
+    detection_mask: Any = None
+    detections: List[Any] = field(default_factory=list)
+    preview_image: Any = None
     processed_latent: Any = None
