@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 
 from ...algorithms import LatentAlgorithms
-from ..context import YoloRunContext
 from .sam_refine import refine_with_sam
 
 

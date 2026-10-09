@@ -4,7 +4,6 @@ import torch
 import torch.nn.functional as F
 
 from ...algorithms import LatentAlgorithms
-from ..context import YoloRunContext
 from ...controlnet import ControlNetHelper
 
 

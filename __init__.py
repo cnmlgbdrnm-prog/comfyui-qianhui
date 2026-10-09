@@ -110,18 +110,16 @@ except Exception as e:
 
 # 11. Latent 智能修复模块
 # ★ 界面层已拆成 4 个节点（YOLO检测 → SAM精修 → 区域修复 → 全局降噪）。
-#   旧名 QianhuiLatentYOLO 保留到摘单体那一步（计划 T13）之后再从这里去掉 ——
-#   注册表是本文件说了算，所以「节点在不在菜单里」这件事只有一个开关。
+#   T13 起那个一体化的巨型节点已**退役**：它从下面的注册表里摘掉、实现文件
+#   （node.py）也删了。注册表是本文件说了算，所以「节点在不在菜单里」只有这一个开关 ——
+#   旧 workflow 引用它的话，需要在图里改用这 4 个节点。
 try:
     from .nodes.qianhui_latent_yolo import (
-        QianhuiLatentYOLO,
         QianhuiYoloDetect,
         QianhuiSamRefine,
         QianhuiRegionRepair,
         QianhuiGlobalPass,
     )
-    NODE_CLASS_MAPPINGS["QianhuiLatentYOLO"] = QianhuiLatentYOLO
-    NODE_DISPLAY_NAME_MAPPINGS["QianhuiLatentYOLO"] = "千绘 · Latent智能修复 (YOLO+SAM+CN V6.11.3)"
     NODE_CLASS_MAPPINGS["QianhuiYoloDetect"] = QianhuiYoloDetect
     NODE_DISPLAY_NAME_MAPPINGS["QianhuiYoloDetect"] = "千绘 · YOLO检测"
     NODE_CLASS_MAPPINGS["QianhuiSamRefine"] = QianhuiSamRefine

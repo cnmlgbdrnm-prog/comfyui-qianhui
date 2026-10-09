@@ -33,13 +33,14 @@ ComfyUI 综合提示词插件，由五个历史插件整合而成：
 | 千绘 · SAM精修 | `QianhuiSamRefine` | 第 2 环：把 YOLO 检测框细化为精确分割 mask（SAM v1 / SAM 2 / SAM 2.1 / SAM 3 自动识别版本）；7 个控件 |
 | 千绘 · 区域修复 | `QianhuiRegionRepair` | 第 3 环：按检测遮罩局部重绘（裁剪精修 / 融合模式 / ControlNet / 手脚增强）；输出 `LATENT` + `MASK`；62 个控件 |
 | 千绘 · 全局降噪 | `QianhuiGlobalPass` | 第 4 环：修复后全图降噪 + 视频时序平滑 + 检测信息汇总；输出 `LATENT` + `STRING`；25 个控件 |
-| 千绘 · Latent智能修复 | `QianhuiLatentYOLO` | ★ **旧的一体化节点，正在退役**：功能等价于上面 4 个节点串联（113 个控件挤在一个节点里）。新工作流请用上面 4 个；老 workflow 仍能打开 |
 | 千绘 · 水印添加 | `QianhuiWatermarkAdd` | 可见水印（文字/图片平铺）与 DCT-QIM 隐形水印；依赖 `reedsolo` |
 | 千绘 · 水印提取 | `QianhuiWatermarkExtract` | 提取 DCT-QIM 隐形水印文本 |
 
 ## 千绘 · Latent 修复：4 节点链
 
-原来的「千绘 · Latent智能修复」是一个 113 控件的巨型节点，已按界面层拆成 4 个：
+原来的「千绘 · Latent智能修复」是一个 113 控件的巨型节点，已按界面层拆成 4 个，
+**旧节点已于 T13 退役**（`QianhuiLatentYOLO` 从注册表摘掉，`node.py` 一并删除；
+引用它的老 workflow 需在图中改用下面这 4 个节点）：
 
 ```
 [千绘 · YOLO检测] ──检测数据(QIANHUI_DETECT)──┬─→ [千绘 · SAM精修] ──检测数据──→ [千绘 · 区域修复] ──Latent──→ [千绘 · 全局降噪]
@@ -65,7 +66,7 @@ ComfyUI 综合提示词插件，由五个历史插件整合而成：
 
 ```
 comfyui-qianhui/
-├── __init__.py          # 注册入口 (17 节点统一 Qianhui 前缀)
+├── __init__.py          # 注册入口 (16 节点统一 Qianhui 前缀)
 ├── nodes/               # 节点实现
 │   ├── negative_node.py     # 智能负面提示词
 │   ├── story_node.py        # 剧情播放器 + 剧情编排机

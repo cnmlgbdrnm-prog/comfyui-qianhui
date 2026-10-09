@@ -1,8 +1,6 @@
 """process() 阶段 4：逐帧修复后全图降噪 + 时序平滑 + 输出累积（源 5407-5500）。"""
 import torch
 
-from ..context import YoloRunContext
-
 
 def run_global_pass(node, ctx) -> None:
     """4) 修复后全图降噪 + 视频时序平滑 + 帧历史维护 + 逐帧输出累积。"""
@@ -82,8 +80,6 @@ def run_global_pass(node, ctx) -> None:
 
     ctx.out_latents[ctx.i:ctx.i+1] = ctx.processed_latent.detach().to(ctx.out_device)
 
-    if ctx.preview_image is None:
-        ctx.preview_image = node._decode_latent_to_image(ctx.VAE, ctx.processed_latent)[0]
     ctx.out_previews.append(ctx.preview_image.unsqueeze(0))
 
     ctx.out_masks.append(ctx.detection_mask)

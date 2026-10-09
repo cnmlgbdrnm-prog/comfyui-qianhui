@@ -27,7 +27,8 @@
 ## 两套对拍
 
 1. **函数级**：源里每个函数与新版按名配对，施加计划批准的**三种机械改写**后逐字节比对。
-2. **语句级**：源 `process()` 的叶子语句，与新版承接它的那 12 个函数（`PROCESS_SPLIT_TARGETS` 所列），作为**多重集**比对。
+2. **语句级**：源 `process()` 的叶子语句，与新版承接它的那 16 个函数（`PROCESS_SPLIT_TARGETS` 所列），作为**多重集**比对。
+3. **控件表级（§2b）**：源单体注册类的 `INPUT_TYPES` 控件表，与新版 **4 个节点 `INPUT_TYPES` 的并集**逐条比对（T13 前是「与新版那一个类」）。
 
 ## 术语与判据（写死在此，避免口径漂移）
 
@@ -73,8 +74,8 @@ REPO_ROOT = os.path.abspath(os.path.join(_HERE, os.pardir, os.pardir, os.pardir)
 NEW_PACKAGE = os.path.join(REPO_ROOT, "nodes", "qianhui_latent_yolo")
 REPORT_FILE = os.path.join(_HERE, "behaviour-preservation-report.txt")
 
-#: 源 `process()` 被拆进这 12 个函数。
-#: 前 8 个 = `node.py` 的 `process()` 实际调用的那些函数（读 node.py:239-253 得到），
+#: 源 `process()` 被拆进这 16 个函数。
+#: 前 8 个 = 单体 `node.py` 的 `process()` 实际调用的那些函数（读 node.py:239-253 得到），
 #: 不是猜的：prepare_run → run_detection → run_repair → run_global_pass
 #: → (finalize_interrupt | build_report)；parse_config 由 prepare_run 调用。
 #: 第 9~11 个（T3 新增）= `report_bits.py` 的 build_preview / build_masks / build_info ——
@@ -83,27 +84,19 @@ REPORT_FILE = os.path.join(_HERE, "behaviour-preservation-report.txt")
 #: 第 12 个（T4 新增）= `sam_refine.py` 的 refine_with_sam —— 同理，是从
 #: run_detection 里再拆出来的**子段**（SAM 精修块，源 `process()` 里那 104 行）。
 #:
-#: ★ T13（单体退役）之后，承接那 1476 行 `process()` 的**主力换了人**：
+#: ★ T13（单体退役）已完成：承接那 1476 行 `process()` 的**主力换了人** ——
 #:   巨型 `process()` 与 `prepare_run` 本身都不在了，改由 4 个 node_*.py 各自的
-#:   `process()` 承接（它们按阶段切开了那批语句）。所以这里把 4 个 process 补进来、
-#:   并把 `node_detect.py` 的 `_finalize_interrupt`（= 原 `report.py:finalize_interrupt`
-#:   逐字搬过去的那段）也列上 —— 不列就会把「搬走了」误判成「丢了」。
-#:   映射的 `PROCESS_SPLIT_TARGETS` 必须与真身一一对应：**每一段源语句都要有人接**。
-#: ★ T13 的两步（必须按顺序落地，否则中间那一步会留下未登记的语句级丢失）：
-#:   ① 单体退役前：把**新**的承接者补进来（下面 4 个 process + `_finalize_interrupt`），
-#:      旧条目原样留着 —— 它们此时还在磁盘上，去掉就会把源语句判成「丢了」。
-#:   ② 单体退役后：删掉这 4 条（`("node.py","process")` / `("prepare.py","prepare_run")` /
-#:      `("report.py","finalize_interrupt")` / `("report.py","build_report")` 里的**前两条**
-#:      与 report.py 那两条 —— 它们指向的文件/函数已经不存在），
-#:      并在 EXPECTED_STMT_LOSSES 里登记「原来由它们承接、现在没人承接」的那几段。
-#:      ★ 那几段的原文用 `only_src` 的输出抄，**不要凭记忆写**。
+#:   `process()` 承接（它们按阶段切开了那批语句），`node_detect.py` 的
+#:   `_finalize_interrupt`（= 原 `report.py:finalize_interrupt` 逐字搬过去的那段）
+#:   与 3 个 `_prepare` 也一并列上 —— 不列就会把「搬走了」误判成「丢了」。
+#:   那 4 条指向已删文件的旧条目**已去掉**（留着会 FileNotFoundError）。
+#:   映射必须与真身一一对应：**每一段源语句都要有人接**。
 PROCESS_SPLIT_TARGETS = (
-    # 单体退役前仍在的旧承接者（退役后删这 4 条）
-    ("node.py", "process"),
-    ("mixins/pipeline/prepare.py", "prepare_run"),
-    ("mixins/pipeline/report.py", "finalize_interrupt"),
-    ("mixins/pipeline/report.py", "build_report"),
-    # ★ T13 新增：真正的新承接者
+    # ★ T13 已删的 4 条旧承接者（`node.py:process` / `prepare.py:prepare_run` /
+    #   `report.py:finalize_interrupt` / `report.py:build_report`）——
+    #   它们指向的文件/函数都不存在了，`find_function` 会当场 FileNotFoundError。
+    #   去掉它们之后，T13 预演里预装的 10 条 EXPECTED_STMT_LOSSES 正好激活
+    #   （实测 源多出 12 条 = T13 那 10 条 + 本来就在的 2 条）。
     ("node_detect.py", "process"),
     ("node_sam.py", "process"),
     ("node_repair.py", "process"),
@@ -134,21 +127,23 @@ _REWRITES = (
 
 #: 已登记的、有正当理由的函数级差异。多出任何一个都算回归。
 EXPECTED_DIFF_FUNCTIONS = {
-    "__init__": "聚合类 QianhuiLatentYOLO.__init__：新基类链用 super().__init__()，"
-                "源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法；"
-                "T5 起 yolo_cache 改由模块级单例 get_shared_cache() 提供"
-                "（源是每个节点各 new 一个 YOLOModelCache；单例内部的构造参数与源逐字相同："
-                "max_cached_models=3, vram_threshold_mb=500）",
+    "__init__": "源那个**聚合类** QianhuiLatentYOLO.__init__（超长基类链 + 每个节点各 new 一个 "
+                "YOLOModelCache）在 T13 后不复存在：4 个节点各自的 `__init__` 只做 "
+                "`self.yolo_cache = get_shared_cache()`（T5 起的模块级单例；单例内部的构造参数"
+                "与源逐字相同：max_cached_models=3, vram_threshold_mb=500）。按名配对于是把源那条"
+                "配到了某个节点的 `__init__` 上 —— 差异的性质是「聚合类被拆成 4 个」。",
     "get_sam_dir": "新代码改用 folder_paths 的路径解析，去掉了源里的 os.path 兜底分支",
-    "process": "源 1476 行的巨型 process() 被拆成 node.process + 7 个阶段函数（本脚本 §3 逐语句对拍）"
-               "；T8 起另有 4 个 node_*.py 各自实现本节点的 process，同名条目由 2 条变 5 条，"
-               "按名配对会配到不同实现上 —— 差异的性质不变（都是「巨型 process 被拆开」）",
-    "INPUT_TYPES": "T8 起 4 个 node_*.py 各自声明**本节点那一部分**控件（节点名册见 "
-                   "task-8-14-brief.md §一），同名条目由源的 2 条变成 6 条。按名配对于是把源那条"
-                   "**注册节点**的 INPUT_TYPES 配到了某个**子集**上 —— 子集当然不等于全集，"
-                   "差异是拆分本身造成的，不是单体被改。★ 但«单体控件表一个字节都没动»"
-                   "不能只靠这条登记：它由下面 §2b 按 (类名, 函数名) 定点比对单独护住，"
-                   "那一处**不可登记豁免**（必须逐字节相等）。",
+    "process": "源 1476 行的巨型 process() 被拆成 4 个 node_*.py 各自的 process + 7 个阶段函数"
+               "（本脚本 §3 逐语句对拍）；T13 后单体那条 process 已删，新包只剩 4 个节点各自的"
+               "process，同名条目由源的 2 条变 4 条，按名配对会配到不同实现上 —— "
+               "差异的性质不变（都是「巨型 process 被拆开」）",
+    "INPUT_TYPES": "4 个 node_*.py 各自声明**本节点那一部分**控件（节点名册见 "
+                   "task-8-14-brief.md §一），T13 后单体那条已删，同名条目由源的 2 条变成 4 条。"
+                   "按名配对于是把源那条**注册节点**的 INPUT_TYPES 配到了某个**子集**上 —— "
+                   "子集当然不等于全集，差异是拆分本身造成的，不是控件表被改。"
+                   "★ 但«控件表一个字节都没动»不能只靠这条登记：它由下面 §2b 用"
+                   "「源单体控件表 vs 4 节点并集」逐条比对单独护住，那一处**不可登记豁免**"
+                   "（源每一条声明都必须在某个节点里逐字出现）。",
     "detect_sam_version": "SAM 3 追加分支（用户后续明确要求，优先于「leaf mixin 与 "
                           "model_managers.py 冻结」的原计划）：新增 sam3 关键词判定，"
                           "且**必须排在 sam2 的 `hiera` 之前** —— SAM3 权重名 "
@@ -167,49 +162,45 @@ EXPECTED_STMT_LOSSES = (
      "新侧写作 hasattr(node, 'yolo_cache')：三种获批改写只覆盖 `node.x`，"
      "不覆盖以值的形式出现的裸 `node`，故此处对不上（属口径边界，非行为差异）"),
 
-    # ==================== T13：单体退役带来的 8 条 ====================
+    # ==================== T13：单体退役带来的条目 ====================
     #
     # ★ 全部是**用工作区实测**出来的，不是凭记忆写的：把 T13 在一份仓外副本上做完、
-    #   跑一遍本脚本、把 `only_src` 的原文逐条抄过来（当时的未登记条数是 12，
-    #   其中 2 条已由上表两条覆盖）。**每条都要有理由，理由必须成立。**
+    #   跑一遍本脚本、把 `only_src` 的原文逐条抄过来。**每条都要有理由，理由必须成立。**
+    #
+    # ★★ 终审修复轮把 T13 那次登记的 10 条**减到 4 条** —— 六条消失了，因为
+    #    它们**又被承接了**：复审 C-1 指出 `node_detect.py` 的 `out_latents is None`
+    #    兜底把「放大」丢了（那段本该逐字复现 `水印/nodes.py:5531-5543` 的三路），
+    #    修回去之后，这六条源语句重新有了承接者：
+    #        out_latents = original_samples.clone()
+    #        out_latents = self.upscale_latent(original_samples, 放大算法, 放大倍数)
+    #        out_latents = LatentAlgorithms.latent_aware_resize(original_samples, target_h, target_w)
+    #        print(f'[中断] 未完成任何处理，返回原始输入')
+    #        target_h = int(samples.shape[2] * 放大倍数)
+    #        target_w = int(samples.shape[3] * 放大倍数)
+    #    ⇒ 删条目**不是**放宽口径：是那六条语句真的回来了。本脚本新增的
+    #      「登记表条目未被用到 ⇒ 失败」反向绊线在修复前实测报了这 6 条
+    #      （那就是它的一次「能杀它的对照」）。
     ("import time",
-     "prepare_run 里那处**函数内** `import time` 没有逐字搬过去：4 个节点在模块级 "
+     "源 `process()` 里那处**函数内** `import time` 没有逐字搬过去：4 个节点在模块级 "
      "`import time`（模块级语句不在 §3 的扫描范围内），函数体内不再出现这一句。"
      "同一件事换了位置，不是丢掉。"),
-    ("out_latents = original_samples.clone()",
-     "单体在 prepare_run 里**预分配** `out_latents` 的「原图回填」内容（三路分支之一）；"
-     "拆分后各节点只分配空张量，未处理帧改由各自的异常分支**显式回填**"
-     "（node_detect/_finalize_interrupt、node_global 的 except 段）。"
-     "值一样、位置不同 —— 三条分支因此各少一条。"),
-    ("out_latents = self.upscale_latent(original_samples, 放大算法, 放大倍数)",
-     "同上：预分配的第三条分支。★ 真正的放大回填逻辑**没有丢** —— "
-     "node_detect.py 的 `_finalize_interrupt` 里 `放大倍数 > 1.0` 那条分支逐字保留"
-     "（latent_aware_resize / upscale_latent 都在），只是赋值目标从 `out_latents` "
-     "变成了局部量 `orig_sample`，所以文本对不上。"),
-    ("out_latents = LatentAlgorithms.latent_aware_resize(original_samples, target_h, target_w)",
-     "同上：预分配的第二条分支（理由见上一条）。"),
     ("out_previews.append(torch.zeros((1, 64, 64, 3)))",
-     "同一件事在源 process() 里是**一行**（append 里直接构造），"
-     "抽进 finalize_interrupt 后写成**两行**（先 `empty_preview = torch.zeros(...)` "
-     "再 append）。多重集按语句文本比对，一行 vs 两行必然对不上；语义相同。"),
+     "源里有**两处**同文本的 append：一处是 `if out_latents is not None:` 分支里的"
+     "**两行**写法（先 `empty_preview = torch.zeros(...)` 再 append），已随"
+     "`_finalize_interrupt` 逐字搬走、仍在；这一处是 `if out_latents is None:` 分支里"
+     "`for _ in range(batch_size)` 内的**一行**写法，拆分侧**故意不复制**它 ——"
+     "第 0 帧中断时 `out_previews` 为空列表，`build_preview` 自己会走 "
+     "`torch.zeros((batch_size, 64, 64, 3))`，与源逐条补零后 `torch.cat` **同值同形**"
+     "（复审 M-6 已实测核过：preview `(3,64,64,3)`）。一行 vs 两行 + 空列表口径，"
+     "两条原因叠加，故这里对不上；**语义相同**。"),
     ("preview_image = self._decode_latent_to_image(VAE, processed_latent)[0]",
      "★ T13 删掉的正是这一段：`global_pass.py:85-86` 的 "
      "`if ctx.preview_image is None: ... _decode_latent_to_image(...)` 是**永不执行**"
      "的兜底（每个调用点都在循环头绑好了 `ctx.preview_image`，恒不为 None）。"
      "删死代码不是改行为 —— 但它确实少一条语句，故在此登记。"),
-    ("print(f'[中断] 未完成任何处理，返回原始输入')",
-     "中断文案在 T3 抽 `finalize_interrupt` 时改写成了 5 行"
-     "（「[中断] 用户停止处理」/「已完成 N/M 张」/「返回已处理的结果（未处理的部分保持原图）」…）；"
-     "源那一条独立成句的文案在文字上不复存在。属获批的文案改写，非行为差异。"),
     ("return ({'samples': final_samples}, final_preview, final_masks, info)",
      "单体一次返回四路；拆分后由 4 个节点各自的 return + **链条接线**取代"
      "（A→B→C→D，见 README「4 节点链」）。接线就是这条语句的实现，故它本身不再存在。"),
-    ("target_h = int(samples.shape[2] * 放大倍数)",
-     "单体在 process() 里按**整批**的张量尺寸算放大目标；拆分后每个节点在自己的 "
-     "`_prepare` 里按自己那批算（写法不同：`ctx.pixel_h` / `target_h`）。"
-     "同一件事换了算的位置与写法。"),
-    ("target_w = int(samples.shape[3] * 放大倍数)",
-     "同上（宽那一半）。"),
 )
 
 _STMT_LIST_FIELDS = ("body", "orelse", "finalbody", "handlers")
@@ -342,6 +333,38 @@ def normalise(text):
     for rx, repl in _REWRITES:
         text = rx.sub(repl, text)
     return text.strip()
+
+
+def widget_table(fn_node):
+    """从 `INPUT_TYPES` 的 AST 里抽出 {控件名: `ast.unparse(声明)`}（required ∪ optional）。
+
+    定位口径与 `test_latent_algorithms._latent_node_widget_decls` 相同：只认那个
+    **同时含 `required` / `optional` 两个字面量键**的 dict（「配置预设」是它 optional
+    子 dict 的键，不是它自己的键）。找不到返回 None —— 让调用方判失败，
+    而不是悄悄当空表（空表会让 §2b 的「少一条」判据变成永真）。
+
+    ★ 用 `ast.unparse` 而不是源码文本：它把空白/换行归一化，
+      于是「缩进不同」不算差异，而「抄错一个字符 / 改一个默认值」照样现形 ——
+      正是 §2b 要的灵敏度。
+    """
+    for n in ast.walk(fn_node):
+        if not isinstance(n, ast.Dict):
+            continue
+        keys = {k.value for k in n.keys
+                if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+        if not {"required", "optional"} <= keys:
+            continue
+        table = {}
+        for k, v in zip(n.keys, n.values):
+            if not (isinstance(k, ast.Constant) and k.value in ("required", "optional")):
+                continue
+            if not isinstance(v, ast.Dict):
+                continue
+            for kk, vv in zip(v.keys, v.values):
+                if isinstance(kk, ast.Constant) and isinstance(kk.value, str):
+                    table[kk.value] = ast.unparse(vv)
+        return table
+    return None
 
 
 def pair_by_name(src_fns, new_fns):
@@ -562,35 +585,86 @@ def main():
         emit("  + %-20s %s @%d" % (f.name, f.origin, f.lineno))
     emit("")
 
-    # ---------------- §2b 单体控件表的定点复核 ----------------
+    # ---------------- §2b 控件表定点复核 ----------------
     #
     # ★ 为什么必须补这一节：T8 起 4 个 node_*.py 各自声明了自己的 INPUT_TYPES，
     #   源那两条 INPUT_TYPES 于是被「按名配对」配到某个**子集**上（§2 里作为
-    #   已登记差异列出）。代价是：**「单体的控件表一个字节都没动」这句话在 §2
-    #   里再没有证据**。而它恰好是本次拆分最要紧的一条不变量 —— 4 个节点的控件
-    #   是从单体逐字抄的（brief §一），抄错一个字，用户的界面就变了。
-    #   所以这里按 (类名, 函数名) 精确配对复核，不经按名配对、不参与大小排序，
-    #   也**不可登记豁免**：它必须逐字节相等。
+    #   已登记差异列出）。代价是：**「控件表一个字节都没动」这句话在 §2 里再没有证据**。
+    #   而它恰好是本次拆分最要紧的一条不变量 —— 4 个节点的控件是从单体逐字抄的
+    #   （brief §一），抄错一个字，用户的界面就变了。
+    #
+    # ★ T13：单体 `node.py` 已删 ⇒「新侧参照物」从**那一个类**（`QianhuiLatentYOLO`）
+    #   换成 **4 个节点 INPUT_TYPES 的并集**。判据仍是**逐字节**，只是方向变成
+    #   「源单体的每一条控件声明，都要在某个节点里以逐字相同的形式出现」：
+    #
+    #       · 少一条  ⇒ 界面少一个旋钮（红）
+    #       · 改一条  ⇒ 界面变了（红）
+    #       · 多出的  ⇒ 只允许是跨节点 socket（目前只有 `检测数据`），其余红
+    #
+    #   并集内部还顺带做一致性检查：同名控件在两个节点里声明不同 ⇒ 红（= 守卫 G2
+    #   在 Python 侧的那一条；`test_latent_algorithms._latent_node_widget_decls` 里
+    #   也有同一断言，两处互为独立复算）。
     emit("-" * 78)
-    emit("§2b 定点复核：单体注册类的 INPUT_TYPES vs 源同名函数（不经按名配对）")
+    emit("§2b 控件表定点复核：源单体 INPUT_TYPES vs 4 节点 INPUT_TYPES 的并集")
     emit("-" * 78)
     _SRC_NODE_CLS = "LatentKSamplerUpscalerYOLO"
-    _NEW_NODE_CLS = "QianhuiLatentYOLO"
+    _SPLIT_NODES = (("node_detect.py", "QianhuiYoloDetect"),
+                    ("node_sam.py", "QianhuiSamRefine"),
+                    ("node_repair.py", "QianhuiRegionRepair"),
+                    ("node_global.py", "QianhuiGlobalPass"))
+    #: 允许并集比源多出来的名字（跨节点自定义 socket，不是用户界面上的旋钮）。
+    _ALLOWED_EXTRA_WIDGETS = {"检测数据"}
+
     src_it = [f for f in src_fns if f.name == "INPUT_TYPES" and f.cls == _SRC_NODE_CLS]
-    new_it = [f for f in new_fns if f.name == "INPUT_TYPES" and f.cls == _NEW_NODE_CLS]
-    emit("%-42s：%d 条" % ("源 %s.INPUT_TYPES" % _SRC_NODE_CLS, len(src_it)))
-    emit("%-42s：%d 条" % ("新 node.py %s.INPUT_TYPES" % _NEW_NODE_CLS, len(new_it)))
-    if len(src_it) != 1 or len(new_it) != 1:
-        emit("    *** 定位不到唯一的一条 —— 这处证据失效，需人工确认 ***")
-        failure = failure or ("§2b 定位失败：源 %d 条 / 新 %d 条"
-                              % (len(src_it), len(new_it)))
+    src_tbl = widget_table(src_it[0].node) if len(src_it) == 1 else None
+    if src_tbl is None:
+        emit("    *** 源单体 %s.INPUT_TYPES 定位不到唯一的一条 —— 这处证据失效 ***"
+             % _SRC_NODE_CLS)
+        failure = failure or "§2b 定位失败：源 %d 条" % len(src_it)
     else:
-        it_same = normalise(src_it[0].body) == normalise(new_it[0].body)
-        emit("    逐字节比对（三种获批改写 + 剥 docstring 后）：%s"
-             % ("**相同**" if it_same else "**不同**"))
-        if not it_same:
-            emit("    *** 单体控件的声明被改动了 —— 界面会变，而且 4 个节点是照它抄的 ***")
-            failure = failure or "§2b：单体 INPUT_TYPES 与源不再逐字节相同"
+        union, dup_bad = {}, []
+        for rel, cls_name in _SPLIT_NODES:
+            path = os.path.join(NEW_PACKAGE, rel)
+            if not os.path.isfile(path):
+                failure = failure or "§2b：找不到 %s" % rel
+                continue
+            hits = [f for f in extract_functions(path)
+                    if f.name == "INPUT_TYPES" and f.cls == cls_name]
+            tbl = widget_table(hits[0].node) if len(hits) == 1 else None
+            if tbl is None:
+                failure = failure or "§2b：%s 的 %s.INPUT_TYPES 定位失败" % (rel, cls_name)
+                continue
+            for name, decl in tbl.items():
+                if name in union and union[name] != decl:
+                    dup_bad.append(name)
+                union[name] = decl
+
+        missing = sorted(set(src_tbl) - set(union))
+        changed = sorted(n for n in set(src_tbl) & set(union) if src_tbl[n] != union[n])
+        extra = sorted(set(union) - set(src_tbl))
+
+        emit("源 %-34s：%d 条控件" % (_SRC_NODE_CLS, len(src_tbl)))
+        emit("新 4 节点并集（%s）" % "+".join(r for r, _ in _SPLIT_NODES))
+        emit("%-41s：%d 条控件" % ("", len(union)))
+        emit("    源有、并集里没有的（界面会少旋钮）：%d %s"
+             % (len(missing), missing if missing else ""))
+        emit("    两边都有但**声明不同**的（界面会变）：%d %s"
+             % (len(changed), changed if changed else ""))
+        emit("    并集多出的（只允许跨节点 socket）：%d %s"
+             % (len(extra), extra if extra else ""))
+        if dup_bad:
+            emit("    *** 同名控件在多个节点里声明不一致：%s ***" % sorted(set(dup_bad)))
+            failure = failure or "§2b：同名控件跨节点声明不一致 %r" % sorted(set(dup_bad))
+        if missing or changed:
+            failure = failure or ("§2b：源单体的控件表在 4 个节点里对不上"
+                                  "（少了 %d 条 / 改了 %d 条）" % (len(missing), len(changed)))
+        elif set(extra) != _ALLOWED_EXTRA_WIDGETS:
+            failure = failure or ("§2b：并集多出的不是预期的 %r，实为 %r"
+                                  % (sorted(_ALLOWED_EXTRA_WIDGETS), extra))
+        else:
+            emit("    ✓ 源单体的每一条控件声明都在某个节点里**逐字**出现；")
+            emit("      并集只多出 %s（跨节点 socket，不是旋钮）。"
+                 % "、".join("`%s`" % x for x in extra))
     emit("")
 
     # 改写次数统计走**两侧各自提取出的全部函数**（不限于配对上的那些）：
@@ -653,16 +727,29 @@ def main():
     lost_total = sum(only_src.values())          # ★ 给结论行用：源侧丢失的**实际**条数
     emit("源多出 %d 条（即「新版没承接的」，**每一条都必须有理由**）："
          % sum(only_src.values()))
+    used_losses = set()
     for text, cnt in sorted(only_src.items()):
         why = None
-        for needle, reason in EXPECTED_STMT_LOSSES:
+        for idx, (needle, reason) in enumerate(EXPECTED_STMT_LOSSES):
             if needle in text:
                 why = reason
+                used_losses.add(idx)
                 break
         emit("  x%d  %s" % (cnt, text.replace("\n", " / ")[:120]))
         emit("      %s" % (why if why else "*** 未登记 —— 可能是真回归 ***"))
         if why is None:
             failure = failure or "未登记的语句级丢失：%s" % text[:80]
+    # ★ 反向：登记表里**没被用到**的条目也要报出来。
+    #   T13 之前这里允许「尚未生效」的条目（源语句那时还被旧承接者匹配着）；
+    #   T13 已经落地，所以现在**没有**合法的未生效条目 —— 多出来的就是
+    #   陈旧登记（源侧那条语句已经不在 only_src 里了，理由可能已经不成立）。
+    stale_losses = [EXPECTED_STMT_LOSSES[i][0]
+                    for i in range(len(EXPECTED_STMT_LOSSES)) if i not in used_losses]
+    if stale_losses:
+        emit("    ★ 登记表里**没被用到**的条目 %d 条（陈旧登记？）：" % len(stale_losses))
+        for needle in stale_losses:
+            emit("      - %s" % needle[:100])
+        failure = failure or "语句级登记表有未生效条目 %d 条" % len(stale_losses)
     emit("")
     emit("新版多出 %d 条（拆分脚手架 / 新功能 / 获批改写产物）："
          % sum(only_new.values()))
@@ -701,14 +788,24 @@ def main():
     emit("本次实算的「不同」    = %s"
          % ("、".join(sorted(s.name for s, _ in differing)) or "（无）"))
     emit("")
-    emit("★ T8 起上表的「新包函数」必然变大（复审所报 112 → 本次实算 %d）：新增了"
-         % len(new_fns))
-    emit("  4 个 node_*.py 及其私有类与私有方法，**分母变大不是差异变大**。")
-    emit("  源侧的数字一位没变（源函数 105 → %d，源侧落空 0，源 md5 与复审时相同）——"
-         % len(src_fns))
-    emit("  「不同」的**名字集合**变大了，是因为 4 个节点各自也声明了同名函数")
-    emit("  （INPUT_TYPES / process），它们与源的同名条目配对后必然不同，逐条理由")
-    emit("  都在上表里。")
+    emit("★ **T13 只动了「语句级」那一半的数字；函数级那一半一位没变。**")
+    emit("  （理由：T13 删掉的是 `node.py` / `report.py` / `prepare_run` —— 它们**承接**")
+    emit("   了一部分源语句，函数级配对里它们从来就没被算作「相同」过。）")
+    emit("")
+    emit("                          T13 之前（上一版报告）   T13 之后（本次）")
+    emit("    新包函数数             136                      %d" % len(new_fns))
+    emit("    按名配对 / 相同 / 不同  105 / 97 / 8             %d / %d / %d"
+         % (len(pairs), len(identical), len(differing)))
+    emit("    语句承接者个数         20                       %d" % len(PROCESS_SPLIT_TARGETS))
+    emit("    承接口叶子合计         881                      %d" % len(new_leaves))
+    emit("    叶子命中 / 源叶子      672 / 674                %d / %d"
+         % (matched, len(src_leaves)))
+    emit("")
+    emit("  变小的**只有**承接者与叶子命中：被删的那 3 个文件原先各自承接了一部分源语句，")
+    emit("  它们不再计入「承接」—— 那几条**已经逐条登记在 EXPECTED_STMT_LOSSES 里**")
+    emit("  （见 §3 的「源多出」表，每条都有理由），不是悄悄丢失。")
+    emit("  源侧的数字一位没变（源函数 105 → %d，源 md5 与复审时相同）：" % len(src_fns))
+    emit("  **基准没有被任何一次改动碰过**。")
     emit("")
 
     emit("=" * 78)
@@ -716,12 +813,13 @@ def main():
         emit("结论：**有未登记的差异 —— 需要人工判断**：%s" % failure)
         code = 1
     else:
-        emit("结论：函数级「不同」恰为已登记的 %d 个；语句级源侧丢失 %d 处全部有登记"
-             "（登记表 %d 条 —— 表比实际多出的是**尚未生效**的："
-             % (len(EXPECTED_DIFF_FUNCTIONS), lost_total, len(EXPECTED_STMT_LOSSES)))
-        emit("      单体退役（T13）之前，那几条对应的源语句仍由旧承接者匹配着，"
-             "所以现在还没被用到）；")
-        emit("      单体注册类的 INPUT_TYPES 与源逐字节相同（§2b）；")
+        emit("结论：函数级「不同」恰为已登记的 %d 个（%d 处配对）；"
+             "语句级源侧丢失 %d 处全部有登记，且登记表 %d 条**条条生效**"
+             % (len(EXPECTED_DIFF_FUNCTIONS), len(differing), lost_total,
+                len(EXPECTED_STMT_LOSSES)))
+        emit("      （T13 已落地，不再有「尚未生效」的预装条目）；")
+        emit("      控件表逐一核对通过（§2b：源单体 113 条声明全部在 4 节点并集里逐字出现，"
+             "并集只多出跨节点 socket `检测数据`）；")
         emit("      其余全部逐字相同。拆分**未发现未登记的行为变化**。")
         code = 0
     emit("=" * 78)

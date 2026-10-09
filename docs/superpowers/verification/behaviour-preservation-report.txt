@@ -12,30 +12,32 @@
 §1 函数计数（口径：def + async def + lambda，含嵌套）
 ------------------------------------------------------------------------------
 源   ：def 93 + lambda 12 = 105
-新包 ：def 130 + lambda 12 = 142
+新包 ：def 124 + lambda 12 = 136
 
 ------------------------------------------------------------------------------
 §2 函数级：按名配对 + 三种获批改写后逐字节比对
 ------------------------------------------------------------------------------
 源函数名去重 87 个；新包中**没有同名函数**的 = 0 个 
 
-配对成立 105 对 → 逐字节相同 98，不同 7
+配对成立 105 对 → 逐字节相同 97，不同 8
 
 不同的条目（逐个说明理由；理由必须成立，否则就是回归）：
   * get_sam_dir      源 @633    →  nodes\qianhui_latent_yolo\model_managers.py:116
       新代码改用 folder_paths 的路径解析，去掉了源里的 os.path 兜底分支
   * detect_sam_version 源 @697    →  nodes\qianhui_latent_yolo\model_managers.py:180
       SAM 3 追加分支（用户后续明确要求，优先于「leaf mixin 与 model_managers.py 冻结」的原计划）：新增 sam3 关键词判定，且**必须排在 sam2 的 `hiera` 之前** —— SAM3 权重名 `sam3_hiera_l.pt` 里含 `hiera`，顺序反了会被判成 sam2，于是拿 SAM2 的加载器去装 SAM3 的权重。
-  * INPUT_TYPES      源 @1243   →  nodes\qianhui_latent_yolo\node_repair.py:77
-      T8 起 4 个 node_*.py 各自声明**本节点那一部分**控件（节点名册见 task-8-14-brief.md §一），同名条目由源的 2 条变成 6 条。按名配对于是把源那条**注册节点**的 INPUT_TYPES 配到了某个**子集**上 —— 子集当然不等于全集，差异是拆分本身造成的，不是单体被改。★ 但«单体控件表一个字节都没动»不能只靠这条登记：它由下面 §2b 按 (类名, 函数名) 定点比对单独护住，那一处**不可登记豁免**（必须逐字节相等）。
-  * process          源 @1284   →  nodes\qianhui_latent_yolo\node_detect.py:321
-      源 1476 行的巨型 process() 被拆成 node.process + 7 个阶段函数（本脚本 §3 逐语句对拍）；T8 起另有 4 个 node_*.py 各自实现本节点的 process，同名条目由 2 条变 5 条，按名配对会配到不同实现上 —— 差异的性质不变（都是「巨型 process 被拆开」）
+  * INPUT_TYPES      源 @1243   →  nodes\qianhui_latent_yolo\node_detect.py:197
+      4 个 node_*.py 各自声明**本节点那一部分**控件（节点名册见 task-8-14-brief.md §一），T13 后单体那条已删，同名条目由源的 2 条变成 4 条。按名配对于是把源那条**注册节点**的 INPUT_TYPES 配到了某个**子集**上 —— 子集当然不等于全集，差异是拆分本身造成的，不是控件表被改。★ 但«控件表一个字节都没动»不能只靠这条登记：它由下面 §2b 用「源单体控件表 vs 4 节点并集」逐条比对单独护住，那一处**不可登记豁免**（源每一条声明都必须在某个节点里逐字出现）。
+  * process          源 @1284   →  nodes\qianhui_latent_yolo\node_global.py:158
+      源 1476 行的巨型 process() 被拆成 4 个 node_*.py 各自的 process + 7 个阶段函数（本脚本 §3 逐语句对拍）；T13 后单体那条 process 已删，新包只剩 4 个节点各自的process，同名条目由源的 2 条变 4 条，按名配对会配到不同实现上 —— 差异的性质不变（都是「巨型 process 被拆开」）
+  * INPUT_TYPES      源 @1335   →  nodes\qianhui_latent_yolo\node_repair.py:77
+      4 个 node_*.py 各自声明**本节点那一部分**控件（节点名册见 task-8-14-brief.md §一），T13 后单体那条已删，同名条目由源的 2 条变成 4 条。按名配对于是把源那条**注册节点**的 INPUT_TYPES 配到了某个**子集**上 —— 子集当然不等于全集，差异是拆分本身造成的，不是控件表被改。★ 但«控件表一个字节都没动»不能只靠这条登记：它由下面 §2b 用「源单体控件表 vs 4 节点并集」逐条比对单独护住，那一处**不可登记豁免**（源每一条声明都必须在某个节点里逐字出现）。
   * __init__         源 @1517   →  nodes\qianhui_latent_yolo\node_detect.py:306
-      聚合类 QianhuiLatentYOLO.__init__：新基类链用 super().__init__()，源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法；T5 起 yolo_cache 改由模块级单例 get_shared_cache() 提供（源是每个节点各 new 一个 YOLOModelCache；单例内部的构造参数与源逐字相同：max_cached_models=3, vram_threshold_mb=500）
+      源那个**聚合类** QianhuiLatentYOLO.__init__（超长基类链 + 每个节点各 new 一个 YOLOModelCache）在 T13 后不复存在：4 个节点各自的 `__init__` 只做 `self.yolo_cache = get_shared_cache()`（T5 起的模块级单例；单例内部的构造参数与源逐字相同：max_cached_models=3, vram_threshold_mb=500）。按名配对于是把源那条配到了某个节点的 `__init__` 上 —— 差异的性质是「聚合类被拆成 4 个」。
   * _refine_with_sam 源 @2347   →  nodes\qianhui_latent_yolo\mixins\sam.py:80
       同上（SAM 3）：新增 `sam_version == "sam3"` 的加载分支，并把它上面那条 `if` 改成 `elif`。SAM1/SAM2 两条路的语句一条没动；两个版本接口形状的差异全部关在新加的 `_SAM3BoxPredictor` 适配层里（该类在源里不存在，属新包侧未配对项，不参与本表）。
-  * process          源 @4131   →  nodes\qianhui_latent_yolo\node_repair.py:207
-      源 1476 行的巨型 process() 被拆成 node.process + 7 个阶段函数（本脚本 §3 逐语句对拍）；T8 起另有 4 个 node_*.py 各自实现本节点的 process，同名条目由 2 条变 5 条，按名配对会配到不同实现上 —— 差异的性质不变（都是「巨型 process 被拆开」）
+  * process          源 @4131   →  nodes\qianhui_latent_yolo\node_detect.py:321
+      源 1476 行的巨型 process() 被拆成 4 个 node_*.py 各自的 process + 7 个阶段函数（本脚本 §3 逐语句对拍）；T13 后单体那条 process 已删，新包只剩 4 个节点各自的process，同名条目由源的 2 条变 4 条，按名配对会配到不同实现上 —— 差异的性质不变（都是「巨型 process 被拆开」）
 
 源侧落空 0 个（同名条目在新包中已被配对用完）：
     ★ 源侧落空 **0 个** —— 源的每一条函数都在新包里找到了同名对应，
@@ -47,14 +49,11 @@
 
 新包侧新增 docstring 的配对 0 对（第 3 种获批改写，两侧都已剥掉再比）：
 
-新包侧未配对 37 个（拆分新增 / 改名 / 新功能的产物）：
-  + run_detection        nodes\qianhui_latent_yolo\mixins\pipeline\detect.py @12
-  + run_global_pass      nodes\qianhui_latent_yolo\mixins\pipeline\global_pass.py @7
+新包侧未配对 31 个（拆分新增 / 改名 / 新功能的产物）：
+  + run_detection        nodes\qianhui_latent_yolo\mixins\pipeline\detect.py @11
+  + run_global_pass      nodes\qianhui_latent_yolo\mixins\pipeline\global_pass.py @5
   + parse_config         nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @11
-  + prepare_run          nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @190
-  + run_repair           nodes\qianhui_latent_yolo\mixins\pipeline\repair.py @11
-  + finalize_interrupt   nodes\qianhui_latent_yolo\mixins\pipeline\report.py @9
-  + build_report         nodes\qianhui_latent_yolo\mixins\pipeline\report.py @39
+  + run_repair           nodes\qianhui_latent_yolo\mixins\pipeline\repair.py @10
   + build_preview        nodes\qianhui_latent_yolo\mixins\pipeline\report_bits.py @13
   + build_masks          nodes\qianhui_latent_yolo\mixins\pipeline\report_bits.py @19
   + build_info           nodes\qianhui_latent_yolo\mixins\pipeline\report_bits.py @34
@@ -63,21 +62,18 @@
   + set_image            nodes\qianhui_latent_yolo\mixins\sam.py @53
   + predict              nodes\qianhui_latent_yolo\mixins\sam.py @56
   + get_shared_cache     nodes\qianhui_latent_yolo\model_cache.py @454
-  + __init__             nodes\qianhui_latent_yolo\node.py @227
-  + process              nodes\qianhui_latent_yolo\node.py @239
   + __init__             nodes\qianhui_latent_yolo\node_detect.py @119
   + __enter__            nodes\qianhui_latent_yolo\node_detect.py @124
   + _capture             nodes\qianhui_latent_yolo\node_detect.py @127
   + __exit__             nodes\qianhui_latent_yolo\node_detect.py @135
   + _finalize_interrupt  nodes\qianhui_latent_yolo\node_detect.py @140
   + _cpu_image           nodes\qianhui_latent_yolo\node_detect.py @179
-  + INPUT_TYPES          nodes\qianhui_latent_yolo\node_detect.py @197
-  + _prepare             nodes\qianhui_latent_yolo\node_detect.py @375
+  + _prepare             nodes\qianhui_latent_yolo\node_detect.py @397
   + INPUT_TYPES          nodes\qianhui_latent_yolo\node_global.py @91
   + __init__             nodes\qianhui_latent_yolo\node_global.py @146
-  + process              nodes\qianhui_latent_yolo\node_global.py @158
-  + _prepare             nodes\qianhui_latent_yolo\node_global.py @207
+  + _prepare             nodes\qianhui_latent_yolo\node_global.py @221
   + __init__             nodes\qianhui_latent_yolo\node_repair.py @193
+  + process              nodes\qianhui_latent_yolo\node_repair.py @207
   + _prepare             nodes\qianhui_latent_yolo\node_repair.py @271
   + INPUT_TYPES          nodes\qianhui_latent_yolo\node_sam.py @69
   + __init__             nodes\qianhui_latent_yolo\node_sam.py @99
@@ -87,33 +83,34 @@
   + as_payload           nodes\qianhui_latent_yolo\presets.py @173
 
 ------------------------------------------------------------------------------
-§2b 定点复核：单体注册类的 INPUT_TYPES vs 源同名函数（不经按名配对）
+§2b 控件表定点复核：源单体 INPUT_TYPES vs 4 节点 INPUT_TYPES 的并集
 ------------------------------------------------------------------------------
-源 LatentKSamplerUpscalerYOLO.INPUT_TYPES  ：1 条
-新 node.py QianhuiLatentYOLO.INPUT_TYPES   ：1 条
-    逐字节比对（三种获批改写 + 剥 docstring 后）：**相同**
+源 LatentKSamplerUpscalerYOLO        ：113 条控件
+新 4 节点并集（node_detect.py+node_sam.py+node_repair.py+node_global.py）
+                                         ：114 条控件
+    源有、并集里没有的（界面会少旋钮）：0 
+    两边都有但**声明不同**的（界面会变）：0 
+    并集多出的（只允许跨节点 socket）：1 ['检测数据']
+    ✓ 源单体的每一条控件声明都在某个节点里**逐字**出现；
+      并集只多出 `检测数据`（跨节点 socket，不是旋钮）。
 
 三种获批改写的命中次数（两侧**提取出的函数体内**，非整个文件）：
-    \bcfg\.        新   483 / 源     0
-    \bctx\.        新   949 / 源     0
-    \bnode\.       新    59 / 源     0
+    \bcfg\.        新   419 / 源     0
+    \bctx\.        新   806 / 源     0
+    \bnode\.       新    50 / 源     0
     源侧全 0 = 改写方向只有「新 → 源」一种，源文件里根本没有这三种形态，
     所以「改写」不可能在源侧掩盖任何差异。
 
 ------------------------------------------------------------------------------
-§3 语句级：源 process() 的叶子语句 vs 承接它的 20 个函数
+§3 语句级：源 process() 的叶子语句 vs 承接它的 16 个函数
 ------------------------------------------------------------------------------
 源 process()：同名 2 个，取最大者 @line 4131-5606（1476 行）= 主节点
     全部语句 887 条；**叶子语句** 674 条
 
-    node.py                            process            叶子    7 条
-    mixins/pipeline/prepare.py         prepare_run        叶子   58 条
-    mixins/pipeline/report.py          finalize_interrupt 叶子   15 条
-    mixins/pipeline/report.py          build_report       叶子   14 条
-    node_detect.py                     process            叶子   15 条
+    node_detect.py                     process            叶子   21 条
     node_sam.py                        process            叶子   11 条
     node_repair.py                     process            叶子   31 条
-    node_global.py                     process            叶子   21 条
+    node_global.py                     process            叶子   22 条
     node_detect.py                     _prepare           叶子   44 条
     node_repair.py                     _prepare           叶子   16 条
     node_global.py                     _prepare           叶子   29 条
@@ -121,109 +118,92 @@
     mixins/pipeline/prepare.py         parse_config       叶子  105 条
     mixins/pipeline/detect.py          run_detection      叶子  151 条
     mixins/pipeline/repair.py          run_repair         叶子  237 条
-    mixins/pipeline/global_pass.py     run_global_pass    叶子   40 条
+    mixins/pipeline/global_pass.py     run_global_pass    叶子   39 条
     mixins/pipeline/report_bits.py     build_preview      叶子    2 条
     mixins/pipeline/report_bits.py     build_masks        叶子    8 条
     mixins/pipeline/report_bits.py     build_info         叶子   14 条
     mixins/pipeline/sam_refine.py      refine_with_sam    叶子   47 条
-    承接口合计 叶子 881 条
+    承接口合计 叶子 793 条
 
-多重集比对：源 674 条，新版 881 条，**逐字命中 672 条**（99.7%）
+多重集比对：源 674 条，新版 793 条，**逐字命中 668 条**（99.1%）
 
-源多出 2 条（即「新版没承接的」，**每一条都必须有理由**）：
+源多出 6 条（即「新版没承接的」，**每一条都必须有理由**）：
+  x1  import time
+      源 `process()` 里那处**函数内** `import time` 没有逐字搬过去：4 个节点在模块级 `import time`（模块级语句不在 §3 的扫描范围内），函数体内不再出现这一句。同一件事换了位置，不是丢掉。
+  x1  out_previews.append(torch.zeros((1, 64, 64, 3)))
+      源里有**两处**同文本的 append：一处是 `if out_latents is not None:` 分支里的**两行**写法（先 `empty_preview = torch.zeros(...)` 再 append），已随`_finalize_interrupt` 逐字搬走、仍在；这一处是 `if out_latents is None:` 分支里`for _ in range(batch_size)` 内的**一行**写法，拆分侧**故意不复制**它 ——第 0 帧中断时 `out_previews` 为空列表，`build_preview` 自己会走 `torch.zeros((batch_size, 64, 64, 3))`，与源逐条补零后 `torch.cat` **同值同形**（复审 M-6 已实测核过：preview `(3,64,64,3)`）。一行 vs 两行 + 空列表口径，两条原因叠加，故这里对不上；**语义相同**。
+  x1  preview_image = self._decode_latent_to_image(VAE, processed_latent)[0]
+      ★ T13 删掉的正是这一段：`global_pass.py:85-86` 的 `if ctx.preview_image is None: ... _decode_latent_to_image(...)` 是**永不执行**的兜底（每个调用点都在循环头绑好了 `ctx.preview_image`，恒不为 None）。删死代码不是改行为 —— 但它确实少一条语句，故在此登记。
   x1  print(f'[Latent YOLO智能处理+ControlNet V6.11.2] 批量: {batch_size}')
       版本横幅 V6.11.2 → V6.11.3，拆分计划强制
+  x1  return ({'samples': final_samples}, final_preview, final_masks, info)
+      单体一次返回四路；拆分后由 4 个节点各自的 return + **链条接线**取代（A→B→C→D，见 README「4 节点链」）。接线就是这条语句的实现，故它本身不再存在。
   x1  yolo_model = self.yolo_cache.load_model(yolo_models_to_use[0], precision=inference_precision) if hasattr(self, 'yolo_cac
       新侧写作 hasattr(node, 'yolo_cache')：三种获批改写只覆盖 `node.x`，不覆盖以值的形式出现的裸 `node`，故此处对不上（属口径边界，非行为差异）
 
-新版多出 209 条（拆分脚手架 / 新功能 / 获批改写产物）：
+新版多出 125 条（拆分脚手架 / 新功能 / 获批改写产物）：
   x1  NO_PRESET = None
   x1  _decoded_np = None
   x1  _decoded_np = frame.decoded.numpy() if isinstance(frame.decoded, torch.Tensor) else frame.decoded
   x1  _finalize_interrupt(self, ctx, frames)
-  x1  additional_models = [(yolo_model2, confidence2 if confidence2 > 0 else confidence), (yolo_model3, confidence3 if confide
-  x1  all_dets = []
   x1  apply_preset = None
   x1  apply_preset(cfg, kwargs.get('配置预设') or NO_PRESET, node_key=node_key)
   x1  base_latent = None
   x1  base_pos, base_neg = (正面提示, 负面提示)
-  x2  batch_size = samples.shape[0]
+  x1  batch_size = samples.shape[0]
   x1  batch_size = 检测数据.batch_size
   x1  blend_mode = flags.get('blend_mode', blend_mode)
   x1  cfg = YoloConfig()
-  x1  cfg = parse_config(kwargs)
   x1  cfg = parse_config(kwargs, node_key='detect')
   x1  cfg = parse_config(kwargs, node_key='global')
   x1  cfg = parse_config(kwargs, node_key='repair')
   x1  cfg = parse_config(kwargs, node_key='sam')
-  x2  class_rules = self._parse_class_rules(class_rules_text)
-  x2  class_rules_text = self._get_preset_class_rules(class_rules_preset)
+  x1  class_rules = self._parse_class_rules(class_rules_text)
+  x1  class_rules_text = self._get_preset_class_rules(class_rules_preset)
   x3  continue
   x1  ctx = DetectRunCtx(cfg=cfg, 模型=模型, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器, 降噪=降噪, 放大
   x1  ctx = GlobalRunCtx(cfg=cfg, 模型=模型, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器)
   x1  ctx = RepairCtx(cfg=cfg, 模型=模型, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器, 降噪=降噪)
   x1  ctx = SamRunCtx(cfg=cfg, 模型=模型)
-  x1  ctx = YoloRunContext(cfg=cfg, 模型=模型, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器, 降噪=降噪, 
-  x1  ctx = prepare_run(self, kwargs, Latent=Latent, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 模型=模型, 步数=步数, CFG=CFG, 采样器=采样器,
   x1  ctx = self._prepare(kwargs, Latent=Latent, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 模型=模型, 步数=步数, CFG=CFG, 采样器=采样器, 调度器
   x1  ctx = self._prepare(kwargs, 检测数据=检测数据, Latent=Latent, 模型=模型, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器)
   x1  ctx = self._prepare(kwargs, 检测数据=检测数据, 模型=模型, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器, 降噪=降噪)
   x1  decoded_det = self._upscale_image_for_yolo(frame.decoded, min_size=1024)
-  x1  detect_latent = out_latents if out_latents is not None else original_samples.clone()
+  x1  detect_latent = out_latents
   x1  detection_mask = torch.zeros((frame.pixel_h, frame.pixel_w), dtype=torch.float32)
   x1  detection_mask = torch.zeros((pixel_h, pixel_w), dtype=torch.float32)
   x2  detections = frame.detections
   x1  dets = refine_with_sam(node, ctx, dets, decoded_det)
-  x1  empty_preview = torch.zeros((1, 64, 64, 3))
   x1  enable_crop = flags.get('enable_crop', enable_crop)
-  x1  enable_yolo = False
   x1  enable_yolo = flags.get('enable_yolo', enable_yolo)
-  x1  final_masks = build_masks(ctx)
-  x1  final_preview = build_preview(ctx)
-  x1  final_samples = out_latents.to(samples.device) if out_device != samples.device else out_latents
-  x1  finalize_interrupt(self, ctx)
   x1  flags = 检测数据.stage_flags or {}
   x1  frame.detections = refine_with_sam(self, ctx, frame.detections, decoded_det)
-  x1  frame_history = [] if video_mode else None
   x1  frame_latent = Latent['samples'][frame.i:frame.i + 1]
   x1  frames = []
   x1  frames.append(DetectionFrame(i=i, processed=True, detections=detections, pixel_h=pixel_h, pixel_w=pixel_w, latent_h=late
   x1  frames.append(DetectionFrame(i=j, processed=False, detections=[], pixel_h=0, pixel_w=0, latent_h=0, latent_w=0))
   x1  frames[j].processed = False
   x1  from ...presets import apply_preset, NO_PRESET
-  x1  from comfy.utils import ProgressBar
-  x3  has_cn = CN模型 is not None and CN图像 is not None
-  x2  has_hand_skeleton_cn = hand_skeleton_cn_model is not None
+  x2  has_cn = CN模型 is not None and CN图像 is not None
+  x1  has_hand_skeleton_cn = hand_skeleton_cn_model is not None
   x2  i = frame.i
-  x2  i = i
-  x2  info = build_info(ctx, final_samples)
-  x1  interrupted = False
-  x2  interrupted = True
+  x1  i = i
+  x1  info = build_info(ctx, final_samples)
+  x1  interrupted = True
   x1  interrupted = bool(检测数据.interrupted)
   x1  j = len(repaired)
-  x3  ksampler = nodes.KSampler()
+  x2  ksampler = nodes.KSampler()
   x1  latent_for_detection = frame_latent
   x1  latent_h, latent_w = (frame.latent_h, frame.latent_w)
-  x1  model_conf = yolo_confidences_to_use[0] if yolo_confidences_to_use else confidence
-  x1  model_path = YOLOModelManager.get_model_path(model_sel)
-  x1  orig_sample = LatentAlgorithms.latent_aware_resize(orig_sample, target_h, target_w)
-  x1  orig_sample = original_samples[j:j + 1]
-  x1  orig_sample = self.upscale_latent(orig_sample, 放大算法, 放大倍数)
-  x1  original_samples = samples.clone()
-  x2  out_device = samples.device
-  x1  out_device = torch.device('cpu')
-  x1  out_device = torch.device('cpu') if low_vram else samples.device
-  x1  out_latents = None
+  x1  out_device = samples.device
   x1  out_latents = torch.empty((batch_size, samples.shape[1], samples.shape[2], samples.shape[3]), device=out_device, dtype=s
   x1  out_latents[frame.i:frame.i + 1] = processed_latent.detach().to(out_device)
   x1  out_latents[i:i + 1] = latent_for_detection.detach().to(out_device)
   x1  out_latents[j:j + 1] = Latent['samples'][j:j + 1].detach().to(out_device)
-  x1  out_latents[j:j + 1] = orig_sample.detach().to(out_device)
-  x3  out_masks = []
+  x2  out_masks = []
   x2  out_masks.append(detection_mask)
-  x3  out_masks.append(torch.zeros((64, 64)))
-  x2  out_previews = []
-  x1  out_previews.append(empty_preview)
+  x1  out_masks.append(torch.zeros((64, 64)))
+  x1  out_previews = []
   x1  out_previews.append(preview_image.unsqueeze(0))
   x1  payload = DetectionPayload(frames=frames, batch_size=batch_size, stage_flags={'enable_yolo': enable_yolo, '放大倍数': 放大倍数},
   x1  payload = 检测数据
@@ -231,86 +211,50 @@
   x1  payload.stage_flags['blend_mode'] = blend_mode
   x1  payload.stage_flags['enable_crop'] = enable_crop
   x1  payload.stage_flags['use_latent_aware'] = use_latent_aware
-  x1  pbar = None
-  x1  pbar = ProgressBar(batch_size)
-  x3  perf_start = time.time()
-  x1  perf_start_time = time.time() if enable_profiling else None
+  x4  perf_start = time.time()
   x2  pixel_h, pixel_w = (frame.pixel_h, frame.pixel_w)
   x1  pos_full, neg_full = (base_pos, base_neg)
   x1  pos_full, neg_full = (正面提示, 负面提示)
   x1  pos_full, neg_full = self._maybe_apply_controlnet(base_pos, base_neg, True, CN模型, CN图像, CN强度, CN开始, CN结束, pixel_h, pixel
   x1  pos_full, neg_full = self._maybe_apply_controlnet(pos_full, neg_full, True, CN模型, CN图像, CN强度, CN开始, CN结束, pixel_h, pixel
   x1  preview_image = frame.decoded
-  x1  print(f"  V6核心: Tile={('ON' if tile_enabled else 'OFF')} | Seg={('ON' if use_seg else 'OFF')} | 多尺度={('ON' if multi_scal
-  x1  print(f"  融合模式: {blend_mode} | Latent感知插值: {('ON' if use_latent_aware else 'OFF')} | 裁剪精修: {('ON' if enable_crop else 'O
-  x4  print(f"\n{'=' * 60}")
+  x2  print(f"\n{'=' * 60}")
   x1  print(f"\n{'=' * 60}\n[中断] 全局降噪停止\n{'=' * 60}")
   x1  print(f"\n{'=' * 60}\n[中断] 区域修复停止\n{'=' * 60}")
-  x1  print(f"\n{'=' * 60}\n{info}\n{'=' * 60}\n")
-  x1  print(f"{'=' * 60}")
-  x1  print(f'    [{idx}] {os.path.basename(mpath)} | 置信度={conf:.2f}')
-  x2  print(f'  ControlNet: 强度={CN强度}, 范围=[{CN开始}, {CN结束}]')
-  x1  print(f'  YOLO模型: {os.path.basename(yolo_models_to_use[0])} | 置信度={model_conf:.2f}')
-  x1  print(f'  [多模型模式] 准备加载 {len(yolo_models_to_use)} 个YOLO模型:')
-  x1  print(f'  [警告] YOLO模型路径无效，禁用YOLO')
-  x1  print(f'  ★SAM精细化: {sam_model_name} | 阈值={sam_conf_threshold} | 超高精度分割')
-  x1  print(f'  ★WIoU优化: 启用 (α={wiou_alpha}) | 提升检测框精度10-15%')
-  x1  print(f'  ★手脚增强: 降噪≥{hand_foot_denoise}, +{hand_foot_extra_rounds}轮, CFG×{hand_foot_cfg_boost}, CN={hand_foot_cn_strengt
-  x1  print(f'  ★手骨架CN: 强度={skeleton_cn_strength}, 结束={skeleton_cn_end} (MediaPipe自动提取骨架)')
-  x1  print(f'  ★视频模式: 时序平滑={temporal_strength} | 参考帧={frame_window} | 帧间一致性优化')
-  x1  print(f'  分批检测模式 | 每个模型独立置信度阈值')
-  x1  print(f'  工作模式: {work_mode}' + (f' (降噪={final_denoise_strength})' if work_mode == '修复后全图降噪' else ''))
-  x1  print(f'  放大: {放大倍数}x | 基础降噪: {降噪} | 色差修复: {color_strength}')
-  x1  print(f'[Latent YOLO智能处理+ControlNet V6.11.3] 批量: {batch_size}')
-  x1  print(f'[中断] 已完成: {processed_count}/{batch_size} 张')
-  x1  print(f'[中断] 用户停止处理')
-  x1  print(f'[中断] 返回已处理的结果（未处理的部分保持原图）')
+  x1  print(f'  ControlNet: 强度={CN强度}, 范围=[{CN开始}, {CN结束}]')
   x1  print(f'[千绘·YOLO检测 V6.11.3] 批量: {batch_size}')
   x1  print(f'[千绘·全局降噪 V6.11.3] 批量: {batch_size}')
   x1  print(f'[千绘·区域修复 V6.11.3] 批量: {batch_size}')
-  x2  processed_count = 0
-  x1  processed_count = frame.i + 1
+  x1  processed_count = 0
   x1  processed_count = i + 1
   x1  processed_latent = Latent['samples'][frame.i:frame.i + 1]
   x1  repaired = []
   x1  repaired.append(Latent['samples'][j:j + 1])
   x1  repaired.append(frame_latent)
   x1  repaired.append(processed_latent)
-  x1  resolved_path = self._resolve_model_path(yolo_model_selection, manual_path)
   x1  return (build_preview(ctx), payload, {'samples': detect_latent})
   x1  return ({'samples': final_samples}, info)
   x1  return ({'samples': torch.cat(repaired, dim=0)}, build_masks(ctx))
   x1  return (检测数据,)
-  x1  return build_report(self, ctx)
   x1  return cfg
-  x4  return ctx
+  x3  return ctx
   x1  return dets
   x1  return final_masks
   x1  return final_preview
   x1  return info
-  x2  run_detection(self, ctx)
-  x2  run_global_pass(self, ctx)
-  x2  run_repair(self, ctx)
-  x1  sam_model_name = os.path.basename(sam_model_path) if sam_model_path else '[未设置]'
-  x1  sam_model_path = self._resolve_sam_model_path(sam_model_selection, sam_model_manual)
-  x2  samples = Latent['samples']
-  x2  self._cuda_corrupted = False
-  x1  target_classes = self._parse_target_classes(target_classes_str)
-  x1  target_h = out_latents.shape[2]
-  x1  target_w = out_latents.shape[3]
+  x1  run_detection(self, ctx)
+  x1  run_global_pass(self, ctx)
+  x1  run_repair(self, ctx)
+  x1  samples = Latent['samples']
+  x1  self._cuda_corrupted = False
   x1  use_latent_aware = flags.get('use_latent_aware', use_latent_aware)
-  x1  yolo_confidences_to_use = []
-  x1  yolo_confidences_to_use.append(confidence)
-  x1  yolo_confidences_to_use.append(model_conf)
   x1  yolo_model = self.yolo_cache.load_model(yolo_models_to_use[0], precision=inference_precision) if hasattr(node, 'yolo_cac
-  x1  yolo_models_to_use = []
-  x1  yolo_models_to_use.append(model_path)
-  x1  yolo_models_to_use.append(resolved_path)
   x1  放大倍数 = flags.get('放大倍数', 放大倍数)
+  x1  检测数据.perf['global'] = time.time() - perf_start
   x1  检测数据.perf['sam'] = time.time() - perf_start
 
-注：新版多出的 209 条里，与「配置预设」后端有关（含 presets 兜底）的 4 条，
-    其余 205 条全是拆分脚手架（把局部变量搬上 ctx/cfg、把巨型 process 切成阶段调用）。
+注：新版多出的 125 条里，与「配置预设」后端有关（含 presets 兜底）的 4 条，
+    其余 121 条全是拆分脚手架（把局部变量搬上 ctx/cfg、把巨型 process 切成阶段调用）。
     另外：`配置预设` 这个**控件本身在源文件里就已存在**
     （源 nodes.py:1372-1373「V6.6 配置预设」），新版只是补上了它的后端 ——
     所以 `INPUT_TYPES` 能逐字节相同，不是漏改。
@@ -320,24 +264,34 @@
 ------------------------------------------------------------------------------
   复审所报                                | 本次实算
   源函数 105                              | 105   一致
-  新包函数 112                            | 142   **不一致**
+  新包函数 112                            | 136   **不一致**
   源函数缺失 0                            | 按名缺失 0（按同名条目落空 0）
-  按名配对 112 → 逐字节相同 109，不同 3   | 配对 105 → 相同 98，不同 7
-  process() 叶子语句 902 → 命中 901       | 叶子 674 → 命中 672
+  按名配对 112 → 逐字节相同 109，不同 3   | 配对 105 → 相同 97，不同 8
+  process() 叶子语句 902 → 命中 901       | 叶子 674 → 命中 668
 
 复审所报「不同的 3 个」= INPUT_TYPES、__init__、_refine_with_sam、detect_sam_version、get_sam_dir、process
-本次实算的「不同」    = INPUT_TYPES、__init__、_refine_with_sam、detect_sam_version、get_sam_dir、process、process
+本次实算的「不同」    = INPUT_TYPES、INPUT_TYPES、__init__、_refine_with_sam、detect_sam_version、get_sam_dir、process、process
 
-★ T8 起上表的「新包函数」必然变大（复审所报 112 → 本次实算 142）：新增了
-  4 个 node_*.py 及其私有类与私有方法，**分母变大不是差异变大**。
-  源侧的数字一位没变（源函数 105 → 105，源侧落空 0，源 md5 与复审时相同）——
-  「不同」的**名字集合**变大了，是因为 4 个节点各自也声明了同名函数
-  （INPUT_TYPES / process），它们与源的同名条目配对后必然不同，逐条理由
-  都在上表里。
+★ **T13 只动了「语句级」那一半的数字；函数级那一半一位没变。**
+  （理由：T13 删掉的是 `node.py` / `report.py` / `prepare_run` —— 它们**承接**
+   了一部分源语句，函数级配对里它们从来就没被算作「相同」过。）
+
+                          T13 之前（上一版报告）   T13 之后（本次）
+    新包函数数             136                      136
+    按名配对 / 相同 / 不同  105 / 97 / 8             105 / 97 / 8
+    语句承接者个数         20                       16
+    承接口叶子合计         881                      793
+    叶子命中 / 源叶子      672 / 674                668 / 674
+
+  变小的**只有**承接者与叶子命中：被删的那 3 个文件原先各自承接了一部分源语句，
+  它们不再计入「承接」—— 那几条**已经逐条登记在 EXPECTED_STMT_LOSSES 里**
+  （见 §3 的「源多出」表，每条都有理由），不是悄悄丢失。
+  源侧的数字一位没变（源函数 105 → 105，源 md5 与复审时相同）：
+  **基准没有被任何一次改动碰过**。
 
 ==============================================================================
-结论：函数级「不同」恰为已登记的 6 个；语句级源侧丢失 2 处全部有登记（登记表 12 条 —— 表比实际多出的是**尚未生效**的：
-      单体退役（T13）之前，那几条对应的源语句仍由旧承接者匹配着，所以现在还没被用到）；
-      单体注册类的 INPUT_TYPES 与源逐字节相同（§2b）；
+结论：函数级「不同」恰为已登记的 6 个（8 处配对）；语句级源侧丢失 6 处全部有登记，且登记表 6 条**条条生效**
+      （T13 已落地，不再有「尚未生效」的预装条目）；
+      控件表逐一核对通过（§2b：源单体 113 条声明全部在 4 节点并集里逐字出现，并集只多出跨节点 socket `检测数据`）；
       其余全部逐字相同。拆分**未发现未登记的行为变化**。
 ==============================================================================

@@ -26,25 +26,9 @@
         QianhuiGlobalPass: "global",
     };
 
-    // ★ 临时兼容：巨型节点 QianhuiLatentYOLO（单体）**还在注册表里**。
-    //   它不在 NODE_OF 里，但它的「配置预设」下拉必须照旧能用 —— 否则这一轮就是
-    //   「4 个新节点能用、老节点坏了」的半开状态，正是本计划一直在防的那种。
-    //   所以给单体合成一张**各节点表的并集**，等于 T12 之前的行为。
-    //   ★ 单体退役（T13）时，这个常量与下面 buildMonolithTables 的调用一起删掉。
-    const MONOLITH = "QianhuiLatentYOLO";
-
-    function buildMonolithTables(presets) {
-        const nodeKeys = Object.keys(presets);
-        if (!nodeKeys.length) return {};
-        const tiers = Object.keys(presets[nodeKeys[0]] || {});
-        const out = {};
-        for (const tier of tiers) {
-            const acc = {};
-            for (const nk of nodeKeys) Object.assign(acc, presets[nk][tier] || {});
-            out[tier] = acc;
-        }
-        return out;
-    }
+    // ★ T13：巨型节点 QianhuiLatentYOLO（单体）**已退役** —— 那段「临时兼容」
+    //   分支（单体常量 + 合成各节点并集表 + 拉表时注入 + beforeRegisterNodeDef
+    //   里的分支）已随之删净。现在只剩这 4 个节点，NODE_OF 就是完整的节点表。
 
     async function getApp() {
         if (typeof app !== "undefined") return app;
@@ -77,12 +61,6 @@
                                 + "已停用预设联动，请更新千绘插件");
                             return;
                         }
-                    }
-                    // 单体的并集表（见 MONOLITH 的注释；T13 退役时一并删掉）
-                    const all = (d && d.presets) || {};
-                    if (all && Object.keys(all).length) {
-                        d.presets = Object.assign({}, all);
-                        d.presets[MONOLITH] = buildMonolithTables(all);
                     }
                     presetData = d;
                 })
@@ -151,9 +129,9 @@
     appRef.registerExtension({
         name: "qianhui.latent_yolo_presets",
         async beforeRegisterNodeDef(nodeType, nodeData) {
-            // ★ 单体走 MONOLITH 那条临时路径（见上面的注释）；4 个新节点走 NODE_OF。
-            const nodeKey = (nodeData.name === MONOLITH) ? MONOLITH : NODE_OF[nodeData.name];
-            if (!nodeKey) return;                  // 其余节点一律不管
+            // 4 个节点之外的一律不管（T13 起单体已退役，没有别的分支）。
+            const nodeKey = NODE_OF[nodeData.name];
+            if (!nodeKey) return;
 
             // 挂「被覆盖控件 → 翻自定义」监听 + 补应用表到达前的选择。
             // 两件事都依赖拉取到的表，故 onNodeCreated 与 fetch 回调两个时机都调它

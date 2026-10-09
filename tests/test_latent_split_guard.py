@@ -193,7 +193,12 @@ STAGE_MODULES = ("prepare.py", "detect.py", "repair.py",
 #   预期会触发它的改动：T4 的 SAM3 分支、T12 的 apply_preset 新签名、
 #   T13 删 prepare_run —— 每次都要有理由，不是无脑改数字。
 EXPECTED_CFG_ACCESS = {
-    "prepare.py": (48, 99),  # (reads, writes)
+    # ★ T13：`prepare.py` 的 reads 48 → **0**。那 48 次 cfg 读取**全部**发生在
+    #   `prepare_run` 体内（`parse_config` 只写不读，99 次），`prepare_run` 已随单体退役。
+    #   **这不是覆盖率的损失**：那 48 处读取已被 4 个节点的 `_prepare` / `process` 接手
+    #   （见下面 node_*.py 那 4 条），所以「并集覆盖全部 99 个字段」仍是闭合的。
+    #   本条从 48 变 0 正是反 no-op 绊线在**通知**「读的人换地方了」，不是放宽。
+    "prepare.py": (0, 99),  # (reads, writes)
     # T4：SAM 精修块整段搬进了 sam_refine.py，带走了块内**仅有**的两个 cfg 读取
     # （enable_sam 在 :367 的 if 条件里、sam_conf_threshold 在 :408 的调用里；
     # 机检确认这两个字段在 detect.py 的 SAM 块**之外**一处都没读）。整条管道的
@@ -683,10 +688,16 @@ class TestSharedModelCache(unittest.TestCase):
 # 而「静默失效 a」已经复活 —— 修复节点卸的是自己那个空缓存，
 # 检测节点加载的模型再没人卸（不报错、不崩，只是显存一直涨）。
 #
-# ★ 只做**静态** AST 解析、**不 import** 目标模块：`node.py` `import comfy.samplers`，
+# ★ 只做**静态** AST 解析、**不 import** 目标模块：4 个节点都 `import comfy.samplers`，
 #   需要 ComfyUI 运行时（那一格由 test_import_smoke.py 的桩负责，各司其职）。
 
-NODE_PY = os.path.join(pkgs_dir("qianhui_latent_yolo"), "node.py")
+#: T13：原 `NODE_PY`（指向已删的 `node.py`）随单体退役去掉。
+#: 现在路径由调用方逐节点给出 —— `_assert_node_uses_shared_cache(case, path, class_name)`
+#: 的第 2 个参数就是为此留的（好让变异对照组指向仓外副本）。
+def split_node_path(mod_name):
+    """`node_<stage>.py` 的绝对路径（按需构造，不缓存 —— 变异对照组会换根）。"""
+    return os.path.join(pkgs_dir("qianhui_latent_yolo"), mod_name + ".py")
+
 
 _SHARED_CACHE_SINGLETON = "get_shared_cache"
 _CACHE_ATTR = "yolo_cache"
@@ -752,7 +763,7 @@ def _assert_node_uses_shared_cache(case, path, class_name,
       3. 整个文件里**没有** `YOLOModelCache(...)` 的直接构造点 ——
          防绕过单例另起一份缓存（「静默失效 a」的原形）。
 
-    `path` 由调用方给（测试读模块级 NODE_PY），好让变异对照组指向仓外副本。
+    `path` 由调用方给（测试传 `split_node_path(mod_name)`），好让变异对照组指向仓外副本。
     """
     with io.open(path, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
@@ -788,15 +799,28 @@ class TestNodesUseSharedCache(unittest.TestCase):
     """T5：节点 `__init__` 必须走模块级单例，而不是各 new 一个缓存。
 
     「单例存在」与「节点用了它」是两件事：`TestSharedModelCache` 护前者（运行时），
-    本类护后者（静态）。只留前者的话，node.py 被改回自己 new 一个也不会有测试红。
+    本类护后者（静态）。只留前者的话，某个节点被改回自己 new 一个也不会有测试红。
+
+    ★ T13：单体退役后本类改盯**4 个节点**（各一条子用例）。原先那条只测单体
+    （`NODE_PY` + `QianhuiLatentYOLO`），随 `node.py` 一起删 —— 但它护的不变量
+    对 4 个节点同样成立，所以是**改指**不是**取消**。`_assert_node_uses_shared_cache`
+    本来就是为这 4 个节点准备的（见其 docstring）。
     """
 
-    def test_qianhui_latent_yolo_init_uses_the_shared_cache(self):
-        """★ 绊线：node.py 改回自己 `new` 缓存 / 多赋一处 / 绕过单例，本条都当场红。
+    #: (模块名, 类名) —— 4 个节点各自一份 `__init__`。
+    NODES = (("node_detect", "QianhuiYoloDetect"),
+             ("node_sam", "QianhuiSamRefine"),
+             ("node_repair", "QianhuiRegionRepair"),
+             ("node_global", "QianhuiGlobalPass"))
+
+    def test_every_split_node_init_uses_the_shared_cache(self):
+        """★ 绊线：任一节点的 `__init__` 改回自己 `new` 缓存 / 多赋一处 / 绕过单例，当场红。
 
         两个变异对照组（改回直接构造、在 `__init__` 末尾再赋一处）见 task-5 报告。
         """
-        _assert_node_uses_shared_cache(self, NODE_PY, "QianhuiLatentYOLO")
+        for mod_name, cls_name in self.NODES:
+            with self.subTest(node=cls_name):
+                _assert_node_uses_shared_cache(self, split_node_path(mod_name), cls_name)
 
 
 # ==================== 4 个精简 Context 的字段归属（T6） ====================
@@ -850,7 +874,12 @@ EXPECTED_CTX_FIELD_COUNTS = {
     "DetectCtx": 41,
     "SamCtx": 3,
     "RepairCtx": 28,
-    "GlobalCtx": 27,
+    # ★ T13：27 → 26。删掉 `global_pass.py` 那段死代码（`if ctx.preview_image is None:
+    #   ... _decode_latent_to_image(ctx.VAE, ...)`）之后，`VAE` 在 GlobalCtx 里
+    #   **再没有读者** —— 而全图降噪节点本来就不声明 VAE 输入，这个槽本就不该在。
+    #   是 `test_every_slot_is_read_by_its_sources`（每个槽都要有来源读）把它揪出来的。
+    #   四个类的**并集仍是 50**：`VAE` 由 DetectCtx 持有并读（检测节点解码预览图）。
+    "GlobalCtx": 26,
 }
 EXPECTED_CTX_UNION = 50
 
@@ -1231,6 +1260,148 @@ class TestSlimContexts(unittest.TestCase):
 
 SPLIT_NODE_DIR = pkgs_dir("qianhui_latent_yolo")
 
+#: ★ 冻结的「4 个节点控件声明」快照（114 条：控件名 → `ast.unparse(声明)`）。
+#
+# 为什么需要它（终审 C-附3 ①②）：
+#   T13 把 `_latent_node_widget_decls()` 的数据源换成了「4 个节点 INPUT_TYPES 的并集」，
+#   而 `test_the_four_nodes_together_cover_every_widget_of_the_old_node` 原本拿它当
+#   「旧单体」的参照物 ⇒ 等号两边成了同一份东西，那条守卫退化成**同义反复**
+#   （终审实测：删 `node_global` 的 `工作模式`、删 `node_detect` 的 `二次检测精修`
+#    都不会让它红）。这里把参照物换成本文件内**冻结**的 114 条 —— 守卫重新有了独立性。
+#
+# 同时补上 C-附3② 那个洞：**单节点独有控件的绝对值**此前无人钉
+#   （实测：把 `node_sam` 独有的 `SAM置信度阈值` 默认值 0.8 → 0.9，套件全绿 ——
+#    `test_shared_widget_declarations_are_identical_across_nodes` 只查「同名的相等」，
+#    看不见只出现在一个节点里的控件被动过）。
+#   本快照存的是**整条声明**：类型、default、min/max/step、tooltip、options 顺序。
+#
+# ★ 这是**冻结契约**，不是「当前值的转抄」：改它必须与「为什么改」同一次提交，
+#   并且先问一句「用户界面真的该变吗」。生成方式与 `CONTEXT_KEY_SNAPSHOT` 一致 ——
+#   从 `_node_widget_decls()` 逐条机检 dump，**不要手抄**。
+#
+# ★ 为什么是 **114** 条而不是源单体的 113 条：源侧那 113 条 = 本快照 **减去**
+#   `检测数据`（4 个节点之间的自定义 socket，类型 `QIANHUI_DETECT`，源单体里
+#   当然没有它）。快照要跟**并集**做**双向**比对（少了红、多了也红），
+#   所以参照物必须是并集的完整契约 114 条；拿 113 条做双向会永远多出 `检测数据`。
+#   「源的 113 条逐字都在并集里、只多 `检测数据`」这另一半由对拍脚本 §2b 独立把守
+#   （它比的是仓外只读源文件 `水印/nodes.py`，与这里的冻结快照互为独立复算）。
+SPLIT_WIDGET_DECL_SNAPSHOT = {
+    'CFG': "('FLOAT', {'default': 8.0, 'min': 0.0, 'max': 100.0, 'step': 0.5})",
+    'CN图像': "('IMAGE',)",
+    'CN开始': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 1.0, 'step': 0.05})",
+    'CN强度': "('FLOAT', {'default': 0.7, 'min': 0.0, 'max': 2.0, 'step': 0.05, 'tooltip': 'ControlNet强度，建议0.6-0.8（过高会丢失纹理细节）'})",
+    'CN模型': "('CONTROL_NET',)",
+    'CN结束': "('FLOAT', {'default': 1.0, 'min': 0.0, 'max': 1.0, 'step': 0.05})",
+    'Latent': "('LATENT',)",
+    'MPB颜色保持': "('FLOAT', {'default': 0.5, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': 'MPB模式下的颜色保持强度，0=完全融合，1=完全保持'})",
+    'Poisson迭代次数': "('INT', {'default': 40, 'min': 0, 'max': 100, 'step': 5})",
+    'SAM模型手动路径': "('STRING', {'default': '', 'tooltip': '手动输入SAM模型路径（选择[手动输入路径]时使用）'})",
+    'SAM模型选择': "(SAMModelManager.get_model_list(), {'default': SAMModelManager.get_model_list()[0], 'tooltip': '选择SAM模型（支持v1/v2/v2.1，自动检测版本）'})",
+    'SAM置信度阈值': "('FLOAT', {'default': 0.8, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': 'SAM分割置信度阈值，提高可获得更精确的分割'})",
+    'Seg边缘羽化': "('FLOAT', {'default': 3.0, 'min': 0.0, 'max': 10.0, 'step': 0.5})",
+    'Tile大小': "('INT', {'default': 640, 'min': 320, 'max': 1280, 'step': 64})",
+    'Tile重叠': "('FLOAT', {'default': 0.3, 'min': 0.1, 'max': 0.5, 'step': 0.05})",
+    'VAE': "('VAE',)",
+    'WIoU权重参数': "('FLOAT', {'default': 3.0, 'min': 1.0, 'max': 10.0, 'step': 0.5, 'tooltip': 'WIoU聚焦参数，越大越关注困难样本'})",
+    'YOLO推理尺寸': "('INT', {'default': 768, 'min': 320, 'max': 1280, 'step': 32, 'tooltip': 'YOLO imgsz参数，提高尺寸可提升小目标检测精度'})",
+    'YOLO模型': "(yolo_models if yolo_models else ['[手动输入路径]'], {'default': yolo_models[0] if yolo_models else '[手动输入路径]'})",
+    'YOLO模型2': "(['[不使用]'] + (yolo_models if yolo_models else []), {'default': '[不使用]', 'tooltip': '多模型模式：第2个检测模型'})",
+    'YOLO模型2置信度': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': 'YOLO模型2的独立置信度（0=使用主置信度）'})",
+    'YOLO模型3': "(['[不使用]'] + (yolo_models if yolo_models else []), {'default': '[不使用]', 'tooltip': '多模型模式：第3个检测模型'})",
+    'YOLO模型3置信度': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': 'YOLO模型3的独立置信度（0=使用主置信度）'})",
+    'YOLO模型4': "(['[不使用]'] + (yolo_models if yolo_models else []), {'default': '[不使用]', 'tooltip': '多模型模式：第4个检测模型'})",
+    'YOLO模型4置信度': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': 'YOLO模型4的独立置信度（0=使用主置信度）'})",
+    'YOLO路径': "('STRING', {'default': '', 'multiline': False, 'placeholder': '手动输入模型完整路径'})",
+    'seed': "('INT', {'default': 0, 'min': 0, 'max': 18446744073709551615})",
+    '二次检测扩展': "('INT', {'default': 32, 'min': 0, 'max': 256, 'step': 8})",
+    '二次检测最多目标': "('INT', {'default': 6, 'min': 1, 'max': 50, 'step': 1})",
+    '二次检测精修': "('BOOLEAN', {'default': False})",
+    '低显存模式': "('BOOLEAN', {'default': False})",
+    '使用Latent感知插值': "('BOOLEAN', {'default': True})",
+    '使用Seg分割': "('BOOLEAN', {'default': True, 'tooltip': '使用YOLO-seg模型的分割mask（需要seg模型）'})",
+    '使用WIoU优化': "('BOOLEAN', {'default': True, 'tooltip': '使用Weighted IoU提高边界框定位精度10-15%'})",
+    '修复优先级': "(['按置信度', '按面积', '脸优先', '手优先', '脚优先', '自定义优先级'], {'default': '脸优先'})",
+    '修复轮次': "('INT', {'default': 1, 'min': 1, 'max': 6, 'step': 1})",
+    '全图降噪强度': "('FLOAT', {'default': 0.25, 'min': 0.05, 'max': 0.5, 'step': 0.05, 'tooltip': '修复后全图降噪的强度，建议0.2-0.35'})",
+    '区域CFG': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 100.0, 'step': 0.5})",
+    '区域步数': "('INT', {'default': 0, 'min': 0, 'max': 10000, 'step': 1})",
+    '区域降噪': "('FLOAT', {'default': 0.65, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': '提高降噪强度可获得更彻底的修复效果'})",
+    '参考帧窗口': "('INT', {'default': 2, 'min': 1, 'max': 5, 'step': 1, 'tooltip': '用于时序一致性的参考帧数量'})",
+    '合并IOU阈值': "('FLOAT', {'default': 0.35, 'min': 0.0, 'max': 0.95, 'step': 0.05})",
+    '合并仅同类': "('BOOLEAN', {'default': True})",
+    '合并后二次扩张像素': "('INT', {'default': 0, 'min': 0, 'max': 256, 'step': 8})",
+    '合并后二次扩张比例': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 1.0, 'step': 0.05})",
+    '合并重叠框': "('BOOLEAN', {'default': True})",
+    '启用EMA注意力': "('BOOLEAN', {'default': False, 'tooltip': '启用多尺度注意力机制，聚焦关键区域'})",
+    '启用SAM精细化': "('BOOLEAN', {'default': False, 'tooltip': '使用SAM模型精细化分割（支持SAM/SAM2/SAM2.1）'})",
+    '启用Tile检测': "('BOOLEAN', {'default': True, 'tooltip': '大图分块检测，提高召回率'})",
+    '启用YOLO': "('BOOLEAN', {'default': True})",
+    '启用多模型': "('BOOLEAN', {'default': False, 'tooltip': '启用多模型分批检测，降低显存压力，提高检测准确率'})",
+    '启用性能分析': "('BOOLEAN', {'default': False, 'tooltip': '显示各步骤耗时统计，帮助定位性能瓶颈'})",
+    '多尺度检测': "('BOOLEAN', {'default': True, 'tooltip': '使用多个尺度检测同一图像，提高准确度（略慢）'})",
+    '工作模式': "(['仅修复(保持输入Latent)', '修复后全图降噪'], {'default': '仅修复(保持输入Latent)'})",
+    '左右分组保护': "('BOOLEAN', {'default': True})",
+    '开启裁剪精修': "('BOOLEAN', {'default': True})",
+    '手脚CFG加成': "('FLOAT', {'default': 1.2, 'min': 1.0, 'max': 2.0, 'step': 0.1, 'tooltip': '手脚区域CFG增强倍数（1.2-1.5效果最佳，过高会导致过度饱和）'})",
+    '手脚CN强度': "('FLOAT', {'default': 0.7, 'min': 0.3, 'max': 1.0, 'step': 0.05, 'tooltip': '手脚区域ControlNet强度（0.5-0.8效果最佳，1.0可能丢失自然纹理）'})",
+    '手脚增强模式': '(\'BOOLEAN\', {\'default\': True, \'tooltip\': "手脚区域自动提高降噪、扩展mask、增加padding/steps（建议在prompt中添加\'perfect hands, detailed fingers\'以获得更好效果）"})',
+    '手脚衰减下限': "('FLOAT', {'default': 0.4, 'min': 0.2, 'max': 0.8, 'step': 0.05, 'tooltip': '多轮修复时降噪的最低值（防止后续轮次降噪过低）'})",
+    '手脚降噪下限': "('FLOAT', {'default': 0.8, 'min': 0.5, 'max': 1.0, 'step': 0.05, 'tooltip': '手脚区域的最低降噪值（V6.10提升至0.80，参考HandRefiner最佳实践）'})",
+    '手脚降噪衰减': "('FLOAT', {'default': 0.85, 'min': 0.5, 'max': 1.0, 'step': 0.05, 'tooltip': '多轮修复时降噪的衰减系数（每轮 denoise *= 衰减系数）'})",
+    '手脚额外轮次': "('INT', {'default': 1, 'min': 0, 'max': 3, 'step': 1, 'tooltip': '手脚区域额外修复轮次'})",
+    '手骨架CN模型': "('CONTROL_NET', {'tooltip': '手部骨架专用ControlNet模型（推荐: control_openpose / control_dw_pose）。提供此模型后，修手时自动用MediaPipe提取骨架注入，避免生成多余手指'})",
+    '按置信度自适应降噪': "('BOOLEAN', {'default': True})",
+    '排序方式': "(['置信度', '面积'], {'default': '置信度'})",
+    '推理精度': "(['FP32(默认)', 'FP16(省显存)', 'BF16(平衡)'], {'default': 'FP32(默认)', 'tooltip': 'FP16可节省40%显存并提速，BF16在支持的GPU上更稳定'})",
+    '放大倍数': "('FLOAT', {'default': 1.0, 'min': 1.0, 'max': 4.0, 'step': 0.25})",
+    '放大算法': "(['nearest', 'bilinear', 'bicubic', 'area', 'latent_aware'],)",
+    '时序一致性强度': "('FLOAT', {'default': 0.3, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': '帧间平滑强度，越大越平滑但可能损失细节'})",
+    '智能策略': "(['关闭', '人像(脸/手/脚)', '通用(按面积)'], {'default': '人像(脸/手/脚)'})",
+    '最多目标数': "('INT', {'default': 0, 'min': 0, 'max': 200, 'step': 1})",
+    '未检测时处理': "(['保持原样', '全图重绘'], {'default': '保持原样'})",
+    '检测数据': "('QIANHUI_DETECT',)",
+    '模型': "('MODEL',)",
+    '正面提示': "('CONDITIONING',)",
+    '步数': "('INT', {'default': 20, 'min': 1, 'max': 10000})",
+    '每帧清理缓存': "('BOOLEAN', {'default': False})",
+    '每类最多目标数': "('INT', {'default': 0, 'min': 0, 'max': 50, 'step': 1})",
+    '注意力聚焦强度': "('FLOAT', {'default': 1.5, 'min': 1.0, 'max': 3.0, 'step': 0.1, 'tooltip': '注意力聚焦系数，越大越集中于高置信度区域'})",
+    '清晰度恢复强度': "('FLOAT', {'default': 0.3, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': '修复后的细节和清晰度恢复强度，可减少朦胧感'})",
+    '目标类别': "('STRING', {'default': '', 'multiline': False, 'placeholder': '留空=全部 | 支持部分匹配: foot,hand,face'})",
+    '类别规则': "('STRING', {'default': '', 'multiline': True, 'placeholder': '自定义规则格式:\\nface: steps=20,denoise=0.4,limit=4\\nhand: denoise=0.75,limit=2'})",
+    '类别规则预设': "(['[不使用预设]', '人像优化(face高质量)', '手部优化(hand高降噪)', '脚部优化(foot高降噪)', '人像全面(face+hand+foot)', '自定义规则'], {'default': '[不使用预设]', 'tooltip': '快速应用预设规则模板'})",
+    '结果缓存设备': "(['自动', 'GPU', 'CPU'], {'default': '自动'})",
+    '置信度': "('FLOAT', {'default': 0.25, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': 'YOLO模型1的检测置信度阈值'})",
+    '自定义优先级关键词': "('STRING', {'default': 'face,hand,foot', 'multiline': False})",
+    '自适应降噪_低置信缩放': "('FLOAT', {'default': 0.85, 'min': 0.1, 'max': 1.5, 'step': 0.05})",
+    '自适应降噪_高置信缩放': "('FLOAT', {'default': 1.0, 'min': 0.1, 'max': 1.5, 'step': 0.05})",
+    '色差修复强度': "('FLOAT', {'default': 0.85, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': '提高色差修复强度可更好地平衡修复区域和原始区域的色彩'})",
+    '融合模式': "(['Poisson融合', 'MPB增强融合', '频率感知', '简单混合', '智能柔和融合'], {'default': '智能柔和融合', 'tooltip': '智能柔和融合：多层次渐进羽化+色彩对齐+细节恢复，柔化色差和朦胧感'})",
+    '裁剪CFG': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 100.0, 'step': 0.5})",
+    '裁剪使用ControlNet': "('BOOLEAN', {'default': True})",
+    '裁剪扩展': "('INT', {'default': 64, 'min': 0, 'max': 512, 'step': 8})",
+    '裁剪放大倍率': "('FLOAT', {'default': 1.6, 'min': 1.0, 'max': 4.0, 'step': 0.1})",
+    '裁剪最大边': "('INT', {'default': 512, 'min': 128, 'max': 2048, 'step': 64})",
+    '裁剪步数': "('INT', {'default': 20, 'min': 1, 'max': 200, 'step': 1, 'tooltip': '增加步数可提升修复质量，推荐18-25步'})",
+    '裁剪轮次': "('INT', {'default': 2, 'min': 1, 'max': 4, 'step': 1})",
+    '裁剪降噪': "('FLOAT', {'default': 0.6, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': '提高降噪可获得更高质量的修复，推荐0.55-0.70'})",
+    '视频模式': "('BOOLEAN', {'default': False, 'tooltip': '启用视频模式，优化帧间一致性'})",
+    '调度器': '(comfy.samplers.KSampler.SCHEDULERS,)',
+    '负面提示': "('CONDITIONING',)",
+    '过滤最大长宽比': "('FLOAT', {'default': 10.0, 'min': 1.0, 'max': 50.0, 'step': 0.5})",
+    '过滤最大面积比': "('FLOAT', {'default': 1.0, 'min': 0.05, 'max': 1.0, 'step': 0.01})",
+    '过滤最小长宽比': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 5.0, 'step': 0.05})",
+    '过滤最小面积比': "('FLOAT', {'default': 0.0, 'min': 0.0, 'max': 0.5, 'step': 0.01})",
+    '逐次降噪递减': "('BOOLEAN', {'default': True})",
+    '遮罩扩展': "('INT', {'default': 32, 'min': 0, 'max': 256, 'step': 8})",
+    '遮罩羽化': "('INT', {'default': 24, 'min': 0, 'max': 128, 'step': 4, 'tooltip': '增加羽化可让边缘更柔和自然，建议20-32'})",
+    '配置预设': "(['[不使用预设]', '快速模式(低质量)', '平衡模式(推荐)', '质量模式(慢速)', '极致质量(超慢)', '省显存模式', '自定义'], {'default': '[不使用预设]', 'tooltip': '一键应用预设配置，快速适配不同场景'})",
+    '采样器': '(comfy.samplers.KSampler.SAMPLERS,)',
+    '降噪': "('FLOAT', {'default': 0.75, 'min': 0.0, 'max': 1.0, 'step': 0.01})",
+    '骨架CN强度': "('FLOAT', {'default': 0.65, 'min': 0.1, 'max': 1.5, 'step': 0.05, 'tooltip': '手骨架ControlNet引导强度（0.5-0.75通常效果最好）'})",
+    '骨架CN结束': "('FLOAT', {'default': 0.7, 'min': 0.0, 'max': 1.0, 'step': 0.05, 'tooltip': '骨架CN在扩散过程的结束步比例（0.7=前70%步有骨架约束，后30%自由细化）'})",
+}
+
 #: (节点短名, 文件名, 类名) —— 顺序就是链条顺序。
 SPLIT_NODES = (
     ("detect", "node_detect.py", "QianhuiYoloDetect"),
@@ -1267,8 +1438,36 @@ PREPARE_ONLY_OWNER = {
     "cache_device_mode": ("global",),
 }
 
+#: 节点**读了自己没有控件的** cfg 字段 —— 逐条、带原因（终审 M-2 / M-3）。
+#:
+#: 为什么需要这张表：`_node_stage_fields()` 原先只统计**pipeline 阶段模块**的读取，
+#: 于是「节点自己的 `_prepare` / `process` 里读了一个它不拥有的 cfg 字段」这类越界
+#: **完全看不见**（终审 M-3 实测：已有的 `color_strength` 就是这么漏的）。
+#: 把 node 文件的读取并进口径之后，下面这两条会当场变红 —— 所以在此显式豁免。
+#:
+#: ★ 两条都由终审**逐行核实过：无数值影响**，因此不为此改行为（改了反而偏离单体）：
+#:   · `hand_skeleton_cn_model`（M-2）：节点 A 用它派生 `ctx.has_hand_skeleton_cn`，
+#:     而该值只喂给 `detect.py:134` 那句 `_decoded_np = decoded_original.numpy()`。
+#:     真正读 `_decoded_np` 的是 `repair.py:240`，节点 C 已用**同一个源**
+#:     （`frame.decoded`）自己重绑过 ⇒ A 侧那条分支恒不执行，是个**静默死分支**。
+#:   · `color_strength`（M-3）：节点 A 的启动横幅打印它。A 不拥有这个控件 ⇒
+#:     用户改的是节点 C 上的值，A 的横幅永远显示声明默认值 —— **纯日志差异**。
+#:
+#: ★ 新增任何**其它**「读了自己没有的控件」都会红 —— 那正是这条口径的意义。
+UNOWNED_CFG_READS = {
+    ("detect", "hand_skeleton_cn_model"):
+        "M-2：只喂给 detect.py:134 的 `_decoded_np`，而那个变量在节点 A 恒不被读"
+        "（节点 C 用同一个 `frame.decoded` 自己重绑）。死分支，无数值影响。",
+    ("detect", "color_strength"):
+        "M-3：节点 A 的启动横幅打印它（纯日志）。A 不声明该控件 ⇒ 改的是 C 上的值，"
+        "A 永远打印声明默认值。无数值影响。",
+}
+
 #: 节点 D 从 `payload.stage_flags` 取的值 → 它不需要对应控件。
 STAGE_FLAG_FIELDS = frozenset(("blend_mode", "use_latent_aware", "enable_yolo", "enable_crop"))
+
+#: D 从 `stage_flags` 取的**非 cfg** 键（它落在 `ctx.放大倍数` 这个槽上，不是 cfg 字段）。
+STAGE_FLAG_NON_CFG_KEYS = frozenset(("放大倍数",))
 
 #: 计划 §四个节点的名册 里写死的返回契约（类名 == 注册名）。
 NODE_RETURN_CONTRACT = {
@@ -1355,8 +1554,23 @@ def _node_widgets(path, class_name):
     return set(_node_widget_decls(path, class_name))
 
 
+def _split_node_file(node_key):
+    """节点短名 → 文件名（`SPLIT_NODES` 是唯一权威）。"""
+    for key, fname, _cls in SPLIT_NODES:
+        if key == node_key:
+            return fname
+    raise KeyError(node_key)
+
+
 def _node_stage_fields(node_key):
-    """节点承接的阶段模块读到的 cfg 字段 ∪ 归它的那 15 个 prepare-only 字段。"""
+    """节点承接的阶段模块读到的 cfg 字段 ∪ 归它的那 15 个 prepare-only 字段
+    ∪ **它自己文件里的** cfg 读取。
+
+    ★ 终审 M-3：最后这一项是补上的口径缺口。原先只统计 pipeline 阶段模块，
+      于是「节点自己的 `_prepare` / `process` 里读了一个它不拥有的 cfg 字段」
+      这类越界看不见（实例：`node_detect.py` 的横幅打印 `ctx.cfg.color_strength`）。
+      补上之后，已存在的两条越界由 `UNOWNED_CFG_READS` 逐条豁免 —— 新增的会红。
+    """
     fields = set()
     for module, func in NODE_STAGE_MODULES[node_key]:
         reads, _ = _cfg_access(os.path.join(PIPELINE_DIR, module))
@@ -1364,6 +1578,10 @@ def _node_stage_fields(node_key):
     for field, owners in PREPARE_ONLY_OWNER.items():
         if node_key in owners:
             fields.add(field)
+    # ★ M-3：把节点**自己那个文件**的 cfg 读取并进来（`_prepare` / `process` 都在里面）。
+    node_reads, _ = _cfg_access(_split_node_path(_split_node_file(node_key)))
+    exempt = {f for (nk, f) in UNOWNED_CFG_READS if nk == node_key}
+    fields |= node_reads - exempt
     return fields - STAGE_FLAG_FIELDS
 
 
@@ -1377,6 +1595,90 @@ def _class_assigns(path, class_name):
             for t in st.targets:
                 if isinstance(t, ast.Name):
                     out[t.id] = ast.unparse(st.value)
+    return out
+
+
+def _stage_flag_keys_written():
+    """4 个节点里**写进** `stage_flags` 的字符串键（两种写法都认，终审 M8）。
+
+    · `DetectionPayload(..., stage_flags={"k": ..., ...})` —— 关键字 + dict 字面量
+      （节点 A 建 payload 时就是这么写的）
+    · `payload.stage_flags["k"] = ...`                    —— 下标赋值（节点 C 那三处）
+    """
+    keys = set()
+    for _key, fname, _cls in SPLIT_NODES:
+        tree = _parse(_split_node_path(fname))
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Call):
+                for kw in n.keywords:
+                    if kw.arg == "stage_flags" and isinstance(kw.value, ast.Dict):
+                        for k in kw.value.keys:
+                            if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                                keys.add(k.value)
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    if (isinstance(t, ast.Subscript)
+                            and isinstance(t.value, ast.Attribute)
+                            and t.value.attr == "stage_flags"
+                            and isinstance(t.slice, ast.Constant)
+                            and isinstance(t.slice.value, str)):
+                        keys.add(t.slice.value)
+    return keys
+
+
+def _stage_flag_keys_read_by_global():
+    """节点 D 从 `payload.stage_flags` **读**的字符串键（终审 M8）。
+
+    做法：先在 `node_global.py` 里找「值里出现 `stage_flags` 的那个赋值」拿到本地名
+    （今天是 `flags = 检测数据.stage_flags or {}`），再收集 `flags.get("k", ...)`
+    第一个实参的字面量。
+
+    ★ 认不出本地名就**断言失败**：静默返回空集会让「读的键都有生产者」变成永真，
+      那就成了一条假网。
+    """
+    tree = _parse(_split_node_path("node_global.py"))
+    names = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign) and "stage_flags" in ast.unparse(n.value):
+            for t in n.targets:
+                if isinstance(t, ast.Name):
+                    names.add(t.id)
+    assert names, ("node_global.py 里找不到「从 stage_flags 取一份到本地名」的赋值 ——"
+                   " M8 的口径失效，别让它静默通过")
+    keys = set()
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and n.func.attr == "get" and isinstance(n.func.value, ast.Name)
+                and n.func.value.id in names and n.args
+                and isinstance(n.args[0], ast.Constant)
+                and isinstance(n.args[0].value, str)):
+            keys.add(n.args[0].value)
+    assert keys, ("node_global.py 里读不到任何 stage_flags 键 —— 口径失效"
+                  "（D 至少读 4 个 cfg 标志 + 放大倍数）")
+    return keys
+
+
+def _assign_targets_in_the_frame_loop(fname, cls_name, loop_iter_substr):
+    """`process()` 里 `for ... in <含 loop_iter_substr>...:` 那个循环体内的赋值目标（unparse）。
+
+    含循环体内**嵌套**块（`with` / `if` / `try`）里的赋值 —— 逐帧重绑就藏在那里。
+    """
+    cls = _find_class(_parse(_split_node_path(fname)), cls_name)
+    assert cls is not None, "%s 里找不到类 %s" % (fname, cls_name)
+    fn = next((s for s in ast.walk(cls)
+               if isinstance(s, ast.FunctionDef) and s.name == "process"), None)
+    assert fn is not None, "%s 的 %s 没有 process()" % (fname, cls_name)
+    loop = next((n for n in ast.walk(fn) if isinstance(n, ast.For)
+                 and loop_iter_substr in ast.unparse(n.iter)), None)
+    assert loop is not None, (
+        "%s.process 里找不到 `for ... in %s…` 那个循环 —— 口径失效，别让它静默通过"
+        % (fname, loop_iter_substr))
+    out = []
+    for n in ast.walk(loop):
+        if isinstance(n, ast.Assign):
+            out.extend(ast.unparse(t) for t in n.targets)
+        elif isinstance(n, ast.AnnAssign) and n.value is not None:
+            out.append(ast.unparse(n.target))
     return out
 
 
@@ -1436,23 +1738,131 @@ class TestSplitNodeWidgets(unittest.TestCase):
         )
 
     def test_the_four_nodes_together_cover_every_widget_of_the_old_node(self):
-        """★ 反「旋钮消失」的兜底：4 个节点的控件并集 ⊇ 旧单体 `node.py` 的 113 个。
+        """★ 反「旋钮消失」：4 个节点的控件并集必须**恰好**等于冻结的 114 条。
 
-        上一条只保证「同名的相等」，这一条保证「一个都没丢」。少了的那一个
-        就是界面上再也找不到的旋钮 —— 而且它的后端逻辑在 4 个节点里都还在跑。
+        上一条只保证「同名的相等」，这一条保证「一个都没丢、也没偷偷多」。
+
+        ★★ 终审 C-附3①：本条原先拿 `set(_latent_node_widget_decls())` 当参照物 ——
+          T13 把那个函数的数据源换成「4 个节点并集」之后，等号两边成了**同一份东西**，
+          本条退化成同义反复（删 `工作模式` / `二次检测精修` 都不红）。
+          现在参照物换成模块级**冻结快照** `SPLIT_WIDGET_DECL_SNAPSHOT`，
+          独立复算的关系重新成立。
         """
-        old = set(_latent_node_widget_decls())
         union = set()
         for node_key, fname, cls_name in SPLIT_NODES:
             union |= _node_widgets(_split_node_path(fname), cls_name)
+        frozen = set(SPLIT_WIDGET_DECL_SNAPSHOT)
         self.assertEqual(
-            sorted(old - union), [],
-            "这些控件在旧单体里有、4 个节点里**一个都没有**（界面上的旋钮消失了）：%s"
-            % sorted(old - union),
+            sorted(frozen - union), [],
+            "这些控件在冻结快照里有、4 个节点里**一个都没有**（界面上的旋钮消失了）：%s"
+            % sorted(frozen - union),
         )
-        # 反向不是不变量：节点可以有意多带界面一致性用的控件（如节点 D 的 CN 5），
-        # 那是**加**界面元素，不会让谁消失。故这里只要求并集不小于旧表。
-        self.assertGreaterEqual(len(union), len(old))
+        self.assertEqual(
+            sorted(union - frozen), [],
+            "4 个节点里出现了快照没有的控件（新增界面元素要同时更新 "
+            "SPLIT_WIDGET_DECL_SNAPSHOT 并说明为什么）：%s" % sorted(union - frozen),
+        )
+
+    def test_every_widget_declaration_matches_the_frozen_snapshot(self):
+        """★ 每个控件的**整条声明**必须与冻结快照逐字相同（终审 C-附3②）。
+
+        `test_shared_widget_declarations_are_identical_across_nodes` 只查「同名的相等」，
+        对**只出现在一个节点里**的控件一言不发 —— 终审的变异电池实测：把 `node_sam`
+        独有的 `SAM置信度阈值` 默认值 `0.8 → 0.9`，整个套件**全绿**。
+        这条把 114 条的绝对值钉死：类型、default、min/max/step、tooltip、options 顺序。
+        """
+        union = {}
+        for node_key, fname, cls_name in SPLIT_NODES:
+            for name, decl in _node_widget_decls(_split_node_path(fname), cls_name).items():
+                union.setdefault(name, decl)
+        frozen = SPLIT_WIDGET_DECL_SNAPSHOT
+        missing = sorted(set(frozen) - set(union))
+        added = sorted(set(union) - set(frozen))
+        changed = sorted(n for n in set(union) & set(frozen) if union[n] != frozen[n])
+        self.assertEqual(
+            (missing, added, changed), ([], [], []),
+            "控件声明的冻结快照被动了：\n"
+            "  消失：%s\n  新增：%s\n"
+            "  改动：%s\n"
+            "  ⇒ 这直接改用户界面 —— 字段变少 = 旋钮没了；默认值 / min / max / step /\n"
+            "     tooltip / options 变了 = 行为或提示变了。确认是有意为之，再更新\n"
+            "     SPLIT_WIDGET_DECL_SNAPSHOT（并在同一次提交里说明为什么）。"
+            % (missing, added,
+               [(n, frozen[n], union[n]) for n in changed]),
+        )
+
+    # ---------------- 终审 M8 / M6 / M7 补的三条网 ----------------
+
+    def test_every_stage_flag_read_by_node_d_is_written_by_some_node(self):
+        """★ 终审 M8：节点 D 从 `payload.stage_flags` 读的**每个键**都要有生产者。
+
+        那 4 个「不复制控件」的值（融合模式 / Latent感知插值 / YOLO / 裁剪精修）
+        由节点 C 写进 `payload.stage_flags`、D 在 `_prepare` 里用
+        `flags.get(k, ctx.cfg.k)` **覆盖**掉自己的声明默认值，
+        好让 `检测信息` 复述的是各阶段**实际用的**值。
+
+        删掉 C 那三处写入 ⇒ D 静默退回声明默认值 ⇒ 检测信息报的不是实际值，
+        **而既有守卫一条都不会红**（终审的变异电池实测：守卫层全绿，只有
+        `test_split_matches_golden` 红 5 例）。这条把「读的键 ⊆ 写的键」钉住。
+        """
+        written = _stage_flag_keys_written()
+        read = _stage_flag_keys_read_by_global()
+        self.assertEqual(
+            sorted(read - written), [],
+            "节点 D 从 payload.stage_flags 读了这些键，但 4 个节点里**没有任何地方写过**：%s\n"
+            "  ⇒ D 会静默退回它自己的声明默认值，`检测信息` 复述的就不是实际用的值。\n"
+            "     （写入口在节点 A 的 `stage_flags={...}` 与节点 C 的 "
+            "`payload.stage_flags[k] = ...`）" % sorted(read - written),
+        )
+
+    def test_stage_flag_exemption_tables_match_what_d_actually_reads(self):
+        """`STAGE_FLAG_FIELDS` / `STAGE_FLAG_NON_CFG_KEYS` 必须与「D 真的读了什么」对齐。
+
+        这两张表是 `_node_stage_fields()` 的**豁免依据**（D 读它们但不需要对应控件）。
+        表一旦与代码脱节就会**悄悄放宽** G1：D 多读一个 cfg 字段而表没跟上，
+        那个字段就同时不受「控件覆盖」与「stage_flags 生产」两条网约束。
+        所以这里把「表 == 实际读的键」直接钉死。
+        """
+        read = _stage_flag_keys_read_by_global()
+        self.assertEqual(
+            read, set(STAGE_FLAG_FIELDS) | set(STAGE_FLAG_NON_CFG_KEYS),
+            "D 实际读的 stage_flags 键与两张豁免表对不上：\n"
+            "  实际读: %s\n  表里 cfg 侧: %s\n  表里非 cfg 侧: %s\n"
+            "  ⇒ 表脱节 = G1 被悄悄放宽。" % (sorted(read), sorted(STAGE_FLAG_FIELDS),
+                                             sorted(STAGE_FLAG_NON_CFG_KEYS)),
+        )
+
+    def test_the_frame_loop_rebinds_the_per_frame_scratch_slots(self):
+        """★ 终审 M6 / M7：帧循环里必须**逐帧重绑**的两个 ctx 槽。
+
+        这两处「少一次赋值」在守卫层完全看不见，而行为上是真差异：
+
+        · **M6** `node_repair` 的 `ctx.detection_mask`：`repair.py` 只在
+          `if ctx.detections:` 里设它 ⇒ 删掉这处复位，**无检测帧会把上一帧的遮罩**
+          append 进 `ctx.out_masks`（终审实测：红 2 个无检测场景）。
+        · **M7** `node_detect` 的 `ctx.out_latents[i:i+1]`：承载张量是
+          `torch.empty(...)`（`detect.py:41-42`）且整块喂给节点 C ⇒ 删掉填充
+          等于**把未初始化内存传给下游**（终审实测：红 30 个子用例）。
+
+        判据取的是「循环体内存在这样的赋值目标」，而不是「值对不对」——
+        值那一层由 `test_split_matches_golden` 管，两条网互补。
+        """
+        repair_targets = _assign_targets_in_the_frame_loop(
+            "node_repair.py", "QianhuiRegionRepair", "iter_frames_in_order")
+        self.assertIn(
+            "ctx.detection_mask", repair_targets,
+            "node_repair.process 的帧循环里没有 `ctx.detection_mask` 的**逐帧复位**。\n"
+            "  ⇒ 无检测帧会把上一帧的遮罩 append 进 `ctx.out_masks`（M6）。\n"
+            "  实测到的赋值目标：%s" % sorted(repair_targets),
+        )
+        detect_targets = _assign_targets_in_the_frame_loop(
+            "node_detect.py", "QianhuiYoloDetect", "range(")
+        self.assertTrue(
+            any(t.startswith("ctx.out_latents[") for t in detect_targets),
+            "node_detect.process 的帧循环里没有 `ctx.out_latents[...] = ...` 的填充。\n"
+            "  ⇒ `torch.empty` 分配的承载张量会把**未初始化内存**传给下游（M7）。\n"
+            "  实测到的赋值目标：%s" % sorted(detect_targets),
+        )
 
     def test_every_node_offers_the_same_preset_dropdown(self):
         """4 个节点各自的 `配置预设` 都必须逐字等于 `presets.PRESET_LABELS`。

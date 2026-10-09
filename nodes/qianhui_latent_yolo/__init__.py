@@ -1,28 +1,28 @@
 """千绘 · Latent 智能修复模块（YOLO 检测 + SAM 精修 + ControlNet）。
 
-界面层已拆成 4 个节点（巨型节点 `QianhuiLatentYOLO` 退役中，见计划
+界面层已拆成 4 个节点（那个一体化的巨型节点已于 T13 退役，见计划
 `docs/superpowers/plans/2026-10-09-latent-node-split.md`）：
 
     [千绘 · YOLO检测] → [千绘 · SAM精修] → [千绘 · 区域修复] → [千绘 · 全局降噪]
 
-`QianhuiLatentYOLO` 与 4 个新节点**并存**（T8~T11 阶段：新旧都能跑，便于对拍），
-摘掉单体的那一步（T13）由根 `__init__.py` 的注册表决定 —— 那个文件是唯一的注册处。
+4 个节点之间除了 `Latent` 之外还传一路自定义 socket `QIANHUI_DETECT`
+（检测数据：逐帧检测记录 + 阶段标志），它替代了单体里那个跨阶段共享的
+`YoloRunContext`。T13 同时删掉了 `node.py` / `mixins/pipeline/report.py` /
+`prepare_run` / `YoloRunContext`，并把单体的旧注册名从根 `__init__.py` 的注册表摘掉
+（那个名字现在是 `QianhuiYoloDetect` 等 4 个）。
 """
-from .node import QianhuiLatentYOLO
 from .node_detect import QianhuiYoloDetect
 from .node_global import QianhuiGlobalPass
 from .node_repair import QianhuiRegionRepair
 from .node_sam import QianhuiSamRefine
 
 NODE_CLASS_MAPPINGS = {
-    "QianhuiLatentYOLO": QianhuiLatentYOLO,
     "QianhuiYoloDetect": QianhuiYoloDetect,
     "QianhuiSamRefine": QianhuiSamRefine,
     "QianhuiRegionRepair": QianhuiRegionRepair,
     "QianhuiGlobalPass": QianhuiGlobalPass,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "QianhuiLatentYOLO": "千绘 · Latent智能修复 (YOLO+SAM+CN V6.11.3)",
     "QianhuiYoloDetect": "千绘 · YOLO检测",
     "QianhuiSamRefine": "千绘 · SAM精修",
     "QianhuiRegionRepair": "千绘 · 区域修复",
@@ -30,7 +30,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 }
 
 __all__ = [
-    "QianhuiLatentYOLO",
     "QianhuiYoloDetect",
     "QianhuiSamRefine",
     "QianhuiRegionRepair",

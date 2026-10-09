@@ -354,10 +354,32 @@ class QianhuiYoloDetect(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
                 ))
             _finalize_interrupt(self, ctx, frames)
 
-        # 承载张量由 `detect.py:41-42` 在第 0 帧分配；第 0 帧就中断时它还是 None，
-        # 此时退回原始输入（与 `report.py:build_report` 的兜底同一个形状）。
-        detect_latent = (ctx.out_latents if ctx.out_latents is not None
-                         else ctx.original_samples.clone())
+        # 承载张量由 `detect.py:41-42` 在第 0 帧分配；第 0 帧就中断时它还是 None。
+        # ★ 这里必须逐字复现单体 `水印/nodes.py:5531-5543` 的**三路**兜底：
+        #   `放大倍数 > 1.0` 时先把原图放大到目标尺寸，**只有** `<= 1.0` 才 clone。
+        #   写成无条件 clone 会把「放大」丢掉 ⇒ 形状 (3,4,16,16) vs 单体 (3,4,24,24)、
+        #   数值也不同，并一路传给 C/D 进最终 LATENT 输出。
+        #   ★ 这条路径 golden 覆盖不到（24 个场景都没有中断），所以判据另立：
+        #     `tests/test_latent_split_e2e.py::TestInterruptAtFirstFrame`
+        #     （复审 C-1；在修之前那条用例实测红在 shape 上）。
+        #   预览 / 遮罩不在这里补零：`build_preview` / `build_masks` 对空列表
+        #   自己会走 `torch.zeros((batch_size, 64, 64, 3))` / 全零栈，与单体逐条
+        #   补零后 cat 的结果同值同形（复审 M-6 已实测核过）。
+        if ctx.out_latents is None:
+            print(f"[中断] 未完成任何处理，返回原始输入")
+            if ctx.放大倍数 > 1.0:
+                if ctx.放大算法 == "latent_aware" or ctx.cfg.use_latent_aware:
+                    target_h = int(ctx.samples.shape[2] * ctx.放大倍数)
+                    target_w = int(ctx.samples.shape[3] * ctx.放大倍数)
+                    ctx.out_latents = LatentAlgorithms.latent_aware_resize(
+                        ctx.original_samples, target_h, target_w)
+                else:
+                    ctx.out_latents = self.upscale_latent(
+                        ctx.original_samples, ctx.放大算法, ctx.放大倍数)
+            else:
+                ctx.out_latents = ctx.original_samples.clone()
+
+        detect_latent = ctx.out_latents
 
         payload = DetectionPayload(
             frames=frames, batch_size=ctx.batch_size,
@@ -381,6 +403,15 @@ class QianhuiYoloDetect(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
                            放大算法=放大算法, 放大倍数=放大倍数)
 
         ctx.has_cn = ctx.cfg.CN模型 is not None and ctx.cfg.CN图像 is not None
+        # ★ 终审 M-2：`hand_skeleton_cn_model` **不是本节点的控件**（它归节点 A 的
+        #   51 个可选控件之外 —— 真正拥有它的是修复节点 C）。所以这一句在节点 A
+        #   恒为 `False`，它派生出的 `ctx.has_hand_skeleton_cn` 只喂给
+        #   `detect.py:134` 的 `_decoded_np = decoded_original.numpy()` —— 也就是说
+        #   那条分支在节点 A **永不执行**（一个静默死分支）。
+        #   终审已逐行核实**无数值影响**：真正读 `_decoded_np` 的是 `repair.py:240`，
+        #   而节点 C 已经用**同一个源**（`frame.decoded`）自己重绑过它。
+        #   这里**故意保留原样**（改它反而偏离单体的字面结构）；豁免登记在
+        #   `tests/test_latent_split_guard.py::UNOWNED_CFG_READS`。
         ctx.has_hand_skeleton_cn = ctx.cfg.hand_skeleton_cn_model is not None
 
         # 如果选择了预设，应用预设规则
@@ -392,6 +423,11 @@ class QianhuiYoloDetect(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
         ctx.batch_size = ctx.samples.shape[0]
         print(f"\n{'='*60}")
         print(f"[千绘·YOLO检测 V6.11.3] 批量: {ctx.batch_size}")
+        # ★ 终审 M-3：这里的 `color_strength`（色差修复强度）**不是本节点的控件** ——
+        #   它归修复节点 C。所以用户在 C 上把它从 0.85 改成 0.5 时，A 的这条横幅
+        #   永远打印**声明默认值**（单体打印的是真值）。终审核实**纯日志差异、
+        #   无数值影响**，故保留原样（照单体结构）；豁免登记见
+        #   `tests/test_latent_split_guard.py::UNOWNED_CFG_READS`。
         print(f"  放大: {ctx.放大倍数}x | 基础降噪: {ctx.降噪} | 色差修复: {ctx.cfg.color_strength}")
         print(f"  V6核心: Tile={'ON' if ctx.cfg.tile_enabled else 'OFF'} | Seg={'ON' if ctx.cfg.use_seg else 'OFF'} | 多尺度={'ON' if ctx.cfg.multi_scale else 'OFF'}")
         if ctx.cfg.use_wiou:

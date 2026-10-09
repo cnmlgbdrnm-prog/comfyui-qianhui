@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""T7：把单体 `QianhuiLatentYOLO` 的 4 路输出冻成 e2e 基准（golden）。
+"""把单体 `QianhuiLatentYOLO` 的 4 路输出冻成 e2e 基准（golden），并盯住拆分链。
 
 ## 这个文件为什么必须在删单体之前存在
 
@@ -8,20 +8,24 @@ T13 会删掉单体；T7 之后如果没有基准落盘，**永久失去对拍�
 （hash 相等 ⟺ `torch.equal` 为真，因为两者都是「同一 dtype/shape 下逐字节」），
 而**不是** `allclose`。
 
-## 四个入口（T11 会 import 它们，名字照抄）
+## 四个入口
 
-    run_monolith(scenario) -> dict   # 跑单体，返回 4 路输出（+ detections 诊断）
-    run_split(scenario)    -> dict   # T7 只留空壳 + NotImplementedError，T11 填
+    run_split(scenario)    -> dict   # 跑拆分链，返回 4 路输出（+ detections 诊断）
     load_golden()          -> dict
     SCENARIOS              -> list[dict]
+    write_golden()         -> None   # 只由 `--write-golden` 调；本任务**绝不重跑**
+
+★ T13 起 `run_monolith(scenario)`（跑单体那一路）已随 `node.py` 删除 ——
+  4 个节点是**唯一**被测实现。曾经挂在单体侧的「反空转 / 确定性 / 旋钮接线 /
+  性能行」四组断言改为盯拆分链（它们是关于**这条链**的性质，不是关于单体的）。
 
 ## 基准怎么生成（**绝不由测试自己写**）
 
     python -X utf8 tests/test_latent_split_e2e.py --write-golden
 
 `discover` 只会 import 本模块，`__main__` 分支不会被执行 ⇒ 基准不会随被测代码漂移。
-生成基准那一次必须跑在**未改动的单体**上，`--write-golden` 会把当时的
-`git rev-parse HEAD` 记进 `meta`。
+生成基准那一次跑在**未改动的单体**上，`--write-golden` 把当时的
+`git rev-parse HEAD` 记进 `meta`；文件已冻结，**T13 之后不许再跑它**。
 
 ## 桩：**自写一份，不 import `test_import_smoke`**
 
@@ -237,7 +241,7 @@ class _FakeVAE:
 #: 桩返回的「YOLO 模型」哨兵。
 _YOLO_SENTINEL = object()
 #: 桩返回的模型路径哨兵：用本测试文件自己的路径 —— 它必然存在，
-#: 从而通过 `prepare_run` 里 `os.path.exists(resolved_path)` 那道闸门。
+#: 从而通过 `node_detect.py:_prepare` 里 `os.path.exists(resolved_path)` 那道闸门。
 #: 它**从不**被当作权重读取（`load_model` 也是桩）。
 _MODEL_PATH_SENTINEL = THIS_FILE
 #: 检测桩每条记录的类别。三种分别压 `_auto_params_for_det` 的三条分支
@@ -254,7 +258,7 @@ _RUN_STATE = {"no_detect": False, "stdout": ""}
 
 #: 每个场景只跑一次的缓存：全场景扫描是**分钟级**开销，而多数用例并不需要新鲜结果。
 #: ★ 需要「新鲜两次」的用例（确定性、两次运行的性能行对比）**绕开**这个缓存直接调
-#: `run_monolith` —— 缓存不能成为掩盖非确定性的地方。
+#: `run_split` —— 缓存不能成为掩盖非确定性的地方。
 _SWEEP_CACHE = {}
 
 
@@ -366,7 +370,7 @@ def _stub_resolve_model_path(self, yolo_model_selection, manual_path):
 
     真实现读 `folder_paths.models_dir` 下的**用户磁盘**——本机既无 ComfyUI 运行时
     也无模型权重，且结果会随机器变化。返回一个必然存在的文件（本测试文件自身），
-    好让 `prepare_run` 的 `os.path.exists` 闸门通过、`enable_yolo` 不被关掉。
+    好让 `node_detect.py:_prepare` 的 `os.path.exists` 闸门通过、`enable_yolo` 不被关掉。
     """
     return _MODEL_PATH_SENTINEL
 
@@ -385,8 +389,6 @@ def _stub_load_model(self, model_path, precision="FP32(默认)"):
 # 环境装配
 # ============================================================
 
-_NODE_MODULE = None
-_NODE_CLS = None
 _WIDGET_DEFAULTS = None
 _WIDGET_DECLS = None
 #: 拆分侧：{"detect"|"sam"|"repair"|"global": 类} 与同名模块（要 patch 模块级名字）。
@@ -396,7 +398,7 @@ _SPLIT_MOD = {}
 
 def setUpModule():
     global _SNAPSHOT, _CUDA_AVAILABLE_ORIG, _NUM_THREADS_ORIG, _MANAGER_CACHE_ORIG
-    global _NODE_MODULE, _NODE_CLS, _WIDGET_DEFAULTS, _WIDGET_DECLS
+    global _WIDGET_DEFAULTS, _WIDGET_DECLS
     global _SPLIT_CLS, _SPLIT_MOD
 
     _SNAPSHOT = dict(sys.modules)
@@ -442,7 +444,7 @@ def setUpModule():
         "InterruptProcessingException", (Exception,), {})
 
     _mkpkg("nodes", PLUGIN_NODES)
-    # 真 ComfyUI 里 `nodes.py` 就定义着 KSampler；`prepare_run` 会 `nodes.KSampler()`。
+    # 真 ComfyUI 里 `nodes.py` 就定义着 KSampler；节点 `_prepare` 会 `nodes.KSampler()`。
     sys.modules["nodes"].KSampler = _FakeKSampler
     _mkpkg("nodes.qianhui_latent_yolo", LATENT_PKG)
     _mkpkg("nodes.qianhui_latent_yolo.mixins", os.path.join(LATENT_PKG, "mixins"))
@@ -467,12 +469,11 @@ def setUpModule():
     from nodes.qianhui_latent_yolo import model_cache
     model_cache._SHARED_CACHE = None
 
-    _NODE_MODULE = _exec("nodes.qianhui_latent_yolo.node",
-                         os.path.join(LATENT_PKG, "node.py"))
-    _NODE_CLS = _NODE_MODULE.QianhuiLatentYOLO
-
     # ⑥ 拆分侧的 4 个节点模块：走同一条 `_exec`（真执行模块体），
     #    于是「4 个节点能不能 import」这条也在本模块里被顺带压到。
+    #
+    #    ★ T13：单体 `node.py` 已删，上面那两行 `_exec(...node.py)` / `_NODE_CLS`
+    #      随之去掉 —— 4 个节点现在是**唯一**被测实现，不再是「另一侧」。
     _SPLIT_CLS, _SPLIT_MOD = {}, {}
     for key, mod_name, cls_name in (
         ("detect", "node_detect", "QianhuiYoloDetect"),
@@ -486,9 +487,9 @@ def setUpModule():
         _SPLIT_CLS[key] = getattr(mod, cls_name)
 
     # ⑤ 重活桩：贴在**类**上（不是实例），4 路输出里就不含任何需要权重/GPU 的东西。
-    #    ★ 单体与拆分侧用**同一套桩函数**（同一个 seed、同一个对象）——
-    #      两侧桩不同的话对拍就是自说自话。
-    for cls in (_NODE_CLS,) + tuple(_SPLIT_CLS.values()):
+    #    T13 前单体与拆分侧用**同一套桩函数**（同一个 seed、同一个对象），好让两侧
+    #    对拍是苹果对苹果；单体退役后只剩 4 个节点，桩照旧贴在同一批类上。
+    for cls in _SPLIT_CLS.values():
         cls._detect_with_yolo = _stub_detect_with_yolo
         cls._detect_single_enhanced = _stub_detect_single_enhanced
         cls._refine_with_sam = _stub_refine_with_sam
@@ -499,9 +500,17 @@ def setUpModule():
         cls._resolve_sam_model_path = _stub_resolve_sam_model_path
     model_cache.YOLOModelCache.load_model = _stub_load_model
 
+    # ★ T13：`_WIDGET_DECLS` / `_WIDGET_DEFAULTS` 的数据源从「单体那一个类」
+    #   换成**4 个节点**。分工：
+    #     · `_WIDGET_DECLS`（AST 静态声明，供 `_require_widget` / COMBO 选项校验）
+    #       ← `_latent_node_widget_decls()`，= 4 个节点 INPUT_TYPES 的并集；
+    #     · `_WIDGET_DEFAULTS`（**真调** `INPUT_TYPES()` 取默认值）
+    #       ← 4 个节点各调一次再并起来（动态表达式的默认值只有真调才拿得到）。
+    #   `_inputs_for` 先按并集铺满默认值，再由 `run_split._split()` 按每个节点
+    #   **自己声明的**控件切分 —— 与真 ComfyUI 一致。
     from test_latent_algorithms import _latent_node_widget_decls
     _WIDGET_DECLS = _latent_node_widget_decls()
-    _WIDGET_DEFAULTS = _defaults_from_input_types(_NODE_CLS)
+    _WIDGET_DEFAULTS = _defaults_from_input_types(_SPLIT_CLS.values())
 
 
 def tearDownModule():
@@ -588,13 +597,27 @@ def _default_of(spec):
     return opts.get("default", None)
 
 
-def _defaults_from_input_types(cls):
-    """真调 `INPUT_TYPES()`（不是照抄常量）取每个控件的默认值。"""
+def _defaults_from_input_types(classes):
+    """真调 4 个节点的 `INPUT_TYPES()`（不是照抄常量）取每个控件的默认值，并成一份。
+
+    T13 前这里只调单体那**一个**类；单体退役后没有「声明全部控件」的类了，所以改为
+    逐节点真调、把结果并起来 —— 与真 ComfyUI 一致：每个节点只声明自己那部分控件，
+    `run_split._split()` 再按每个节点**自己声明的**控件切分。
+
+    ★ **必须真调，不能读 AST 静态声明**（我实测栽过一次）：`采样器` / `调度器`
+      （`comfy.samplers.KSampler.SAMPLERS`）、`YOLO模型*` / `SAM模型选择`（模型目录扫描）
+      这些的声明是**运行期表达式**，静态读只能得到 `('DYNAMIC', {})`，还原不出真值；
+      `放大算法` 这类「COMBO 且没有显式 default」的，静态路径也拿不到 `options[0]`。
+      两条路都会让 `_inputs_for` 把它们铺成 `None`，于是**只有 latent 一路**与基准不同
+      （`放大算法=None` 直接改采样结果）—— 实测 `test_split_matches_golden` 24 个
+      场景全红在 latent。真调 `INPUT_TYPES()` 才是与单体同一个口径。
+    """
     out = {}
-    for section in ("required", "optional"):
-        for name, spec in cls.INPUT_TYPES()[section].items():
-            out[name] = _default_of(spec)
-    assert "配置预设" in out, "INPUT_TYPES 里没有 配置预设 —— 解析口径可能变了"
+    for cls in classes:
+        for section in ("required", "optional"):
+            for name, spec in cls.INPUT_TYPES()[section].items():
+                out[name] = _default_of(spec)
+    assert "配置预设" in out, "4 个节点里都没有 配置预设 —— 解析口径可能变了"
     return out
 
 
@@ -641,70 +664,49 @@ def _require_widget(name):
 
 
 def _require_env():
-    if _NODE_CLS is None or _WIDGET_DEFAULTS is None:
+    if not _SPLIT_CLS or _WIDGET_DEFAULTS is None:
         raise RuntimeError("环境未装配：setUpModule 没跑（本模块的用例必须经 discover/unittest 跑）")
 
 
 # ============================================================
-# 跑单体 / 跑拆分（T11 填）
+# 跑拆分后的 4 节点链（T11 填；T13 起是唯一的被测实现）
 # ============================================================
-
-def run_monolith(scenario) -> dict:
-    """跑单体 `QianhuiLatentYOLO.process()`，返回 4 路输出。
-
-    Returns:
-        {"latent": Tensor,      # 第 1 路 {"samples": ...} 里的 samples
-         "preview": Tensor,     # 第 2 路 检测预览 IMAGE
-         "mask": Tensor,        # 第 3 路 检测遮罩 MASK
-         "info": str,           # 第 4 路 检测信息 STRING
-         "detections": list}    # 诊断用：本次的 all_dets（不在 4 路输出里）
-    """
-    _require_env()
-    inputs = _inputs_for(scenario)
-    _RUN_STATE["no_detect"] = bool(scenario.get("_stub_no_detect", False))
-
-    captured = []
-    orig_build_report = _NODE_MODULE.build_report
-
-    def _capture(node, ctx):
-        res = orig_build_report(node, ctx)
-        captured.append(list(ctx.all_dets))       # 4 路输出之外，只有这里能观察到检测记录
-        return res
-
-    _NODE_MODULE.build_report = _capture
-    buf = io.StringIO()
-    try:
-        with contextlib.redirect_stdout(buf):     # 被测代码 print 极多；不改行为，只收噪音
-            out = _NODE_CLS().process(**inputs)
-    finally:
-        _NODE_MODULE.build_report = orig_build_report
-        _RUN_STATE["stdout"] = buf.getvalue()
-
-    latent, preview, mask, info = out
-    return {"latent": latent["samples"], "preview": preview, "mask": mask,
-            "info": info, "detections": captured[0] if captured else []}
+#
+# ★ T13：原来的 `run_monolith(scenario)`（跑单体并捕获 `all_dets`）已随 `node.py`
+#   一起删掉。它曾经有两个用途：
+#     ① 生成 golden（`write_golden`）—— 早已完成，产物冻结在
+#        `tests/golden/latent_split_e2e.json`，其 `meta.generated_from` 记着出处；
+#     ② 当作 `TestScenarioWiring` / `TestInfoPerfLines` 的**运行载体**。
+#   ② 由 `run_split` 接管 —— 那些断言问的是「这条链的旋钮有没有接线」「性能行
+#   是不是只差三个数值」，对拆分链同样成立、同样值得钉住。① 的载体换成
+#   `run_split` 后**不重跑**：拆分区与单体逐位相同，重生成的 digest 会一模一样，
+#   只有 `meta.git_head` 会变，而 golden 是冻结的对比依据，一个字节都不许动。
 
 
 def run_split(scenario) -> dict:
-    """跑拆分后的 4 节点链，返回与 `run_monolith` **同形状**的 dict。
+    """跑拆分后的 4 节点链（`node_detect.py` / `node_sam.py` / `node_repair.py` /
+    `node_global.py` 串起来跑同一场景），返回一个 5 键 dict：
 
-    T7 只留空壳；**T11 填这个**（`nodes/qianhui_latent_yolo/node_detect.py` /
-    `node_sam.py` / `node_repair.py` / `node_global.py` 串起来跑同一场景）。
-    填完把 `TestSplitSide.test_split_matches_golden` 上的 `@unittest.skip` 摘掉即可。
+        {"latent": Tensor, "preview": Tensor, "mask": Tensor,
+         "info": str, "detections": list}
 
-    ★ **跑法必须逐条照抄下面四条口径**，否则不是「苹果对苹果」。
-      T7 之后单体即删 —— 这是最后一次能把它们钉进**代码**（而不只是报告）的机会：
+    T11 填的实现；**T13 起它是唯一的被测实现**（不再有「单体那一侧」可比）。
+    形状与已删的 `run_monolith` 相同 —— golden 就是照那个形状冻的。
 
-    1. **入参用 `_inputs_for(scenario)`**：它先铺满 `INPUT_TYPES()` 的**声明默认值**、
-       再叠场景覆盖。**别自己写死常量**，否则「改一个默认值」这类漂移就测不出来。
-    2. **`detections` 必须从跨帧累加器取**（单体里是 `ctx.all_dets`）：
-       `global_pass.py:96` 每帧结尾都会 `del ... ctx.detections ...`，而
-       `report_bits.py:44,54` 的 `检测总数(使用后)` 读的正是那个累加器。
+    ★ **跑法必须逐条照抄下面四条口径**，否则与 golden 就不是「苹果对苹果」。
+      这几条是 T7 把单体口径钉进**代码**的地方，单体已删，代码里这段是唯一凭证：
+
+    1. **入参用 `_inputs_for(scenario)`**：它先铺满 4 节点 `INPUT_TYPES` **并集**的
+       声明默认值、再叠场景覆盖，`_split()` 再按每个节点自己声明的控件切分。
+       **别自己写死常量**，否则「改一个默认值」这类漂移就测不出来。
+    2. **`detections` 必须从跨帧累加器取**（`ctx.all_dets`）：
+       `global_pass.py` 每帧结尾都会 `del ... ctx.detections ...`，而
+       `report_bits.py` 的 `检测总数(使用后)` 读的正是那个累加器。
        改成逐帧 `ctx.detections` ⇒ 运行期 AttributeError。
     3. **`seg_mask` 的空间口径两条路本来就不一致，照抄别修**：
        走 detect 阶段的那类（`base`）是**像素空间 128×128**（detect.py 会把检测图空间的
        掩码 resize 回来）；走 SAM 之后的那类（`sam_on`）**不再归一化**，是**检测图空间
-       1024×1024**（`sam.py:462` 塞进去的就是 SAM 在送入那张图上跑出的掩码）。
+       1024×1024**（`sam.py` 塞进去的就是 SAM 在送入那张图上跑出的掩码）。
        4 个节点的 SAM 节点必须复现这个口径，不要「顺手修」。
     4. **检测阶段的排序共三处，拆节点时三处都要搬**：`detect.py:269` 与 `detect.py:287`
        各一次 `node._sort_detections(...)`（后者在合并重叠框之后），`detect.py:363`
@@ -763,10 +765,14 @@ def run_split(scenario) -> dict:
 
 
 def _cached_run(scenario) -> dict:
-    """按场景名缓存一次运行结果（**只为省时间**，见 `_SWEEP_CACHE` 的说明）。"""
+    """按场景名缓存一次**拆分链**的运行结果（**只为省时间**，见 `_SWEEP_CACHE` 的说明）。
+
+    T13 起载体是 `run_split`：单体已删，`TestScenarioWiring` / `TestInfoPerfLines`
+    的旋钮接线与性能行断言改为盯拆分链 —— 那是现在唯一实现。
+    """
     name = scenario["name"]
     if name not in _SWEEP_CACHE:
-        _SWEEP_CACHE[name] = run_monolith(scenario)
+        _SWEEP_CACHE[name] = run_split(scenario)
     return _SWEEP_CACHE[name]
 
 
@@ -924,8 +930,15 @@ def _nonzero(tensor) -> bool:
 
 
 def _scenario_entry(scenario):
-    """跑一次，产出 golden 里的一条。"""
-    result = run_monolith(scenario)
+    """跑一次，产出 golden 里的一条。
+
+    ★ T13：载体从 `run_monolith` 换成 `run_split`。**这个函数只被 `write_golden`
+      调用，而 `write_golden` 只能由命令行 `--write-golden` 显式触发 —— 本任务
+      **绝不重跑它**：`tests/golden/latent_split_e2e.json` 是冻结的对比依据，
+      一个字节都不许动。换载体是**语义等价**的（拆分区与单体逐位相同），
+      重生成的 digest 会一模一样，只有 `meta.git_head` 会变。
+    """
+    result = run_split(scenario)
     return {
         "name": scenario["name"],
         "seed": scenario.get("seed"),
@@ -938,9 +951,29 @@ def _scenario_entry(scenario):
     }
 
 
-def write_golden(path=GOLDEN_PATH, stream=sys.stdout):
-    """生成基准。**只能从命令行显式调用**（`--write-golden`）。"""
+#: 重写已存在的基准需要**显式**带上这个开关（F-1：把「不许重跑」从纪律变成断言）。
+FORCE_REGEN_FLAG = "--i-know-this-rewrites-the-frozen-baseline"
+
+
+def write_golden(path=GOLDEN_PATH, stream=sys.stdout, allow_overwrite=False):
+    """生成基准。**只能从命令行显式调用**（`--write-golden`）。
+
+    ★ F-1：golden 是**冻结的对比依据**，而且它的 `meta.generated_from` 记的是那个
+      **已退役**的单体（`QianhuiLatentYOLO`）—— 也就是说，「这份基准出自未改动的单体」
+      这句话**今天已经无法再核对**了。重跑它会把 `meta` 刷成新值，让基准的出处
+      彻底失去可追溯性。所以这里**硬拒绝**覆盖已存在的基准：确实要重写，
+      必须显式带上 `FORCE_REGEN_FLAG`，并准备好解释为什么基准需要变。
+
+    这道闸门放在 `_require_env()` 之后、**24 个场景扫描之前** —— 它在扫描前就抛，
+    所以「误跑一次」的代价是零（不会跑掉那 140 秒）。
+    """
     _require_env()
+    if os.path.exists(path) and not allow_overwrite:
+        raise SystemExit(
+            "拒绝重写已存在的基准：%s\n"
+            "  golden 是冻结的对比依据（对拍报告与全部 e2e 断言都以它为准），\n"
+            "  它的 meta.generated_from 记的是那个**已退役**的单体，重跑会把出处刷掉。\n"
+            "  确实要重写就显式加 %s。" % (path, FORCE_REGEN_FLAG))
     try:
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT,
                                        stderr=subprocess.DEVNULL).decode("ascii").strip()
@@ -1154,31 +1187,27 @@ class TestGoldenFile(unittest.TestCase):
             self.assertGreater(base[route]["numel"], 0, "base 的 %s 是空的" % route)
 
 
-class TestMonolithAgainstGolden(unittest.TestCase):
-    """★ 本任务的核心：单体今天必须与基准**逐位**一致。"""
+class TestSplitRunSanity(unittest.TestCase):
+    """★ 拆分链的**反空转网** + **确定性**（T13 前挂在单体那一侧）。
 
-    def _compare(self, name, result, entry):
-        for route in ("latent", "preview", "mask"):
-            assert_route_matches(self, name, route, digest(result[route]), entry[route])
-        self.assertEqual(
-            normalize_detections(result["detections"]), entry["detections"],
-            "%s 的 detections 与基准不一致" % name)
-        self.assertEqual(normalize_info(result["info"]), entry["info"],
-                         "%s 的 检测信息 与基准不一致\n实测:\n%s\n基准:\n%s"
-                         % (name, result["info"], entry["info"]))
+    ★ 为什么这个类还在：T13 删掉了原来的 `test_monolith_matches_golden`
+      （它的主语「单体」已不存在；而「与基准逐位一致」由 `TestSplitSide.
+      test_split_matches_golden` 覆盖），但**同类的另外两条不能跟着删** ——
+      它们护的是「跑出来的东西**是不是真的**」：
 
-    def test_monolith_matches_golden(self):
-        entries = golden_entries(load_golden())["scenarios"]
-        sweep = _sweep()
-        for scenario in SCENARIOS:
-            with self.subTest(scenario=scenario["name"]):
-                self._compare(scenario["name"], sweep[scenario["name"]],
-                              entries[scenario["name"]])
+        * `test_scenarios_actually_produce_outputs`：逐场景断言 4 路输出真有内容
+          （numel>0、latent/preview 非零、mask 按「有检测/无检测」分别钉住、
+          base 恰好 9 条检测其中 6 条带 seg_mask）。没有它，「与基准逐位一致」
+          完全可以是「两边都是空的」—— 逐位一致照样成立。
+        * `test_split_run_is_deterministic`：同场景跑两遍逐位一致，否则基准无意义。
+
+      载体现由 `_sweep()` / `run_split` 承担（T13 前是 `run_monolith`）。
+    """
 
     def test_scenarios_actually_produce_outputs(self):
         """★ 场景覆盖表 + 反空转网：每个场景的 4 路输出都得**真的**有内容。
 
-        与 `test_monolith_matches_golden` 共用同一次扫描（`_sweep`），不额外跑。
+        与 `TestSplitSide.test_split_matches_golden` 共用同一条链，不额外跑第 3 种跑法。
         「哪几路非空」的实测表见 task-7-report.md。断言的是：
           * 三路张量**形状**非空（numel > 0），`info` 非空串；
           * latent / preview **内容非零**（全零说明桩空转了）；
@@ -1218,13 +1247,13 @@ class TestMonolithAgainstGolden(unittest.TestCase):
         with_seg = sum(1 for d in dets if d.get("seg_mask") is not None)
         self.assertEqual(with_seg, 6, "base 里应有 6 条带 seg_mask（3 帧 × 2 条）")
 
-    def test_monolith_run_is_deterministic(self):
+    def test_split_run_is_deterministic(self):
         """同一场景跑两遍必须逐位一致；否则「基准」本身就没有意义。
 
         ★ 刻意**绕开** `_SWEEP_CACHE` 真跑两次。
         """
         scenario = [s for s in SCENARIOS if s["name"] == "base"][0]
-        a, b = run_monolith(scenario), run_monolith(scenario)
+        a, b = run_split(scenario), run_split(scenario)
         for route in ("latent", "preview", "mask"):
             self.assertEqual(digest(a[route])["sha256"], digest(b[route])["sha256"], route)
         self.assertEqual(normalize_info(a["info"]), normalize_info(b["info"]))
@@ -1307,7 +1336,7 @@ class TestInfoPerfLines(unittest.TestCase):
     def test_two_runs_differ_only_in_the_perf_numbers(self):
         """★ 真跑两次（绕开缓存）：除了性能行，两条 `检测信息` 必须逐字相同。"""
         scenario = self._profiling_scenario()
-        a, b = run_monolith(scenario), run_monolith(scenario)
+        a, b = run_split(scenario), run_split(scenario)
         self.assertEqual(strip_perf_lines(a["info"]), strip_perf_lines(b["info"]),
                          "除了性能行，两条 检测信息 必须逐字相同")
         self.assertEqual(normalize_info(a["info"]), normalize_info(b["info"]))
@@ -1335,6 +1364,135 @@ class TestInfoPerfLines(unittest.TestCase):
         info = _cached_run(scenario)["info"]
         self.assertNotIn("[性能统计]", info)
         self.assertEqual(normalize_info(info), info)
+
+
+class TestInterruptAtFirstFrame(unittest.TestCase):
+    """★ 节点 A 的「**第 0 帧中断**」路径 —— 复审 C-1 / I-1 的机器判据。
+
+    ## 为什么这条必须存在，而 golden 覆盖不到它
+
+    golden 的 24 个场景**没有一个触发中断**（它是冻结基准，不许重生成）。
+    而「中断落在第 0 帧」这条路上，单体走的是 `水印/nodes.py:5531-5543` 那段
+    **`if out_latents is None:` 三路兜底**：`放大倍数 > 1.0` 时先把原图
+    `latent_aware_resize` 到 `int(h*倍数)`，只有 `<= 1.0` 才 `clone()`。
+    拆分版一度把它写成**无条件 `clone()`** ⇒ 放大丢失、形状与数值都不同，
+    且会一路传给 C/D 进最终 `LATENT` 输出。**这是整支唯一没有网的地方。**
+
+    ## 为什么只测「第 0 帧」
+
+    单体在「第 k 帧（0<k<N）中断」时会先补 `torch.zeros((1,64,64,3))` 预览、
+    再与真帧预览（`latent_h*8` 见方）`torch.cat` ⇒ 尺寸不符**当场 RuntimeError**。
+    所以「第 0 帧」是**唯一**单体也能正常返回、因而存在基准可言的中断路径。
+
+    ## 基线从哪来（不靠 golden）
+
+    同一个场景**未中断**时的 `latent.shape`。中断落在第 0 帧 ⟹ 单体把原图放大到
+    目标尺寸 ⟹ 「中断后的 shape」必须**等于未中断时的 shape**。这就是 C-1 的判据：
+    放大丢了，shape 立刻从 `(3,4,24,24)` 退回 `(3,4,16,16)`。
+
+    注入手法：把 `comfy.model_management` 桩上的
+    `throw_exception_if_processing_interrupted` 换成必抛函数 —— 它正是
+    `detect.py:14`（`run_detection` 第一句）调用的那个，此时 `out_latents`
+    还没被 `detect.py` 分配，所以恰好落进「第 0 帧」窗口。
+    """
+
+    #: 放大倍数 = 1.5 的场景：**唯一**能把「放大丢了」变成 shape 差异的场景。
+    SCENARIO = "scale1.5"
+
+    def _scenario(self):
+        return [s for s in SCENARIOS if s["name"] == self.SCENARIO][0]
+
+    @contextlib.contextmanager
+    def _first_frame_interrupt(self):
+        """本上下文内，`throw_exception_if_processing_interrupted` 必抛。
+
+        ★ 用 `__dict__` 存取而不是普通属性读写：`comfy.model_management` 是
+          `_Stub`，普通属性读取会落到它的 `__getattr__`（返回一个新 lambda）——
+          那样「还原」还原的是个假件，会把桩永久改掉。所以只动/恢复 `__dict__`。
+        """
+        mm = sys.modules["comfy.model_management"]
+        sentinel = object()
+        prev = mm.__dict__.get("throw_exception_if_processing_interrupted", sentinel)
+
+        def _raise():
+            raise mm.InterruptProcessingException("test: 第 0 帧中断")
+
+        mm.__dict__["throw_exception_if_processing_interrupted"] = _raise
+        try:
+            yield
+        finally:
+            if prev is sentinel:
+                mm.__dict__.pop("throw_exception_if_processing_interrupted", None)
+            else:
+                mm.__dict__["throw_exception_if_processing_interrupted"] = prev
+
+    def test_interrupt_at_first_frame_keeps_the_upscale(self):
+        """★ C-1：第 0 帧中断时，`检测用Latent` 必须**仍然被放大**。
+
+        判据（两条都是形状级，与 CPU 线程数无关，可逐位复现）：
+          * 中断后的 `latent.shape` **等于**同场景未中断时的 shape；
+          * 中断后的 `latent` **内容非零**（防「补一个空的正确形状」蒙混过关）。
+        """
+        scenario = self._scenario()
+        control = run_split(scenario)
+        with self._first_frame_interrupt():
+            interrupted = run_split(scenario)
+
+        self.assertEqual(
+            tuple(interrupted["latent"].shape), tuple(control["latent"].shape),
+            "第 0 帧中断后 检测用Latent 的形状与未中断时不同 ——\n"
+            "  未中断 %s vs 中断后 %s\n"
+            "  ⇒ 节点 A 的 `out_latents is None` 兜底把**放大**丢了"
+            "（单体 水印/nodes.py:5531-5543 是「放大倍数>1 就 resize/upscale，否则 clone」"
+            "的三路，不是无条件 clone）。这一路会一路传给 C/D 进最终 LATENT 输出。"
+            % (tuple(control["latent"].shape), tuple(interrupted["latent"].shape)),
+        )
+        self.assertTrue(bool(torch.count_nonzero(interrupted["latent"]) > 0),
+                        "中断后 检测用Latent 内容全零 —— 兜底没真的填东西")
+
+    def test_interrupt_at_first_frame_reports_zero_processed(self):
+        """★ I-1：中断后 `检测信息` 必须报「**0**/N 张」。
+
+        单体里 `processed_count` = **已完成**的帧数，`finalize_interrupt` 不碰它；
+        第 0 帧中断 ⇒ 0。拆分版一度在**透传帧**上把它推到 `frame.i + 1`
+        ⇒ 报「3/3 张」，与同一段文字里的「未处理的图像已使用原图填充」**自相矛盾**。
+        """
+        scenario = self._scenario()
+        with self._first_frame_interrupt():
+            interrupted = run_split(scenario)
+
+        first_line = interrupted["info"].split("\n")[0]
+        n = int(scenario.get("batch_size", 3))
+        self.assertEqual(
+            first_line, "[已中断] 处理: 0/%d 张" % n,
+            "第 0 帧中断后 检测信息 的首行应当是「0/%d 张」，实为 %r\n"
+            "  ⇒ 有帧在没被处理的情况下推进了「已完成」计数。"
+            % (n, first_line),
+        )
+        self.assertIn("未处理的图像已使用原图填充", interrupted["info"])
+
+    def test_write_golden_refuses_to_overwrite_the_frozen_baseline(self):
+        """★ F-1：`write_golden` 必须**拒绝**覆盖已存在的基准。
+
+        这条把「不许重跑 `--write-golden`」从**纪律**变成**断言**：
+        在此之前只靠「没人会手滑」挡着，而误跑一次会把 `meta` 刷成新值、
+        让基准的出处（「出自未改动的单体」）彻底不可追溯。
+
+        闸门在 24 个场景扫描**之前**抛，所以本条是零成本的（不跑那 140 秒）。
+        反向也钉住：显式给出 `FORCE_REGEN_FLAG` 时**不再**因「文件已存在」而拒绝
+        （这里只验证拒绝逻辑被绕过，不真去写 —— 写下去会毁掉基准）。
+        """
+        self.assertTrue(os.path.exists(GOLDEN_PATH), "基准文件不见了，前提不成立")
+        with self.assertRaises(SystemExit) as cm:
+            write_golden(path=GOLDEN_PATH)
+        self.assertIn("拒绝重写已存在的基准", str(cm.exception))
+        self.assertIn(FORCE_REGEN_FLAG, str(cm.exception))
+        # 反向：源文件里那处 `if os.path.exists(path) and not allow_overwrite:` 的存在，
+        # 保证「带开关就能过」。这里用 AST 读它，避免真的写基准。
+        import inspect
+        src = inspect.getsource(write_golden)
+        self.assertIn("not allow_overwrite", src)
+        self.assertIn("SystemExit", src)
 
 
 class TestSplitSide(unittest.TestCase):
@@ -1393,7 +1551,7 @@ def main(argv=None):
     if "--write-golden" in argv:
         setUpModule()
         try:
-            write_golden()
+            write_golden(allow_overwrite=FORCE_REGEN_FLAG in argv)
         finally:
             tearDownModule()
         return 0

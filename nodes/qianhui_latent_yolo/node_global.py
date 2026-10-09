@@ -157,6 +157,7 @@ class QianhuiGlobalPass(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
 
     def process(self, Latent, 检测数据, 模型, 正面提示, 负面提示, seed, 步数,
                 CFG, 采样器, 调度器, **kwargs):
+        perf_start = time.time()
         ctx = self._prepare(kwargs, 检测数据=检测数据, Latent=Latent, 模型=模型,
                             seed=seed, 步数=步数, CFG=CFG, 采样器=采样器,
                             调度器=调度器)
@@ -167,8 +168,13 @@ class QianhuiGlobalPass(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
                 ctx.processed_latent = Latent["samples"][frame.i:frame.i + 1]
                 if not frame.processed:
                     # 中断补帧：**跳过全部分支直接透传**（计划 §R1）。
+                    # ★ 这里**不推进** `ctx.processed_count`：它的语义是「**已完成**的
+                    #   帧数」（单体由 `run_global_pass` 结尾 `ctx.processed_count =
+                    #   ctx.i + 1` 推进，`finalize_interrupt` 不碰它）。透传帧没被处理，
+                    #   推进它会让 `build_info` 报出「[已中断] 处理: 3/3 张」——
+                    #   与同一段文字里的「未处理的图像已使用原图填充」自相矛盾
+                    #   （复审 I-1；判据见 e2e 的 `TestInterruptAtFirstFrame`）。
                     ctx.out_latents[frame.i:frame.i + 1] = ctx.processed_latent.detach().to(ctx.out_device)
-                    ctx.processed_count = frame.i + 1
                     continue
 
                 ctx.detections = frame.detections
@@ -196,6 +202,14 @@ class QianhuiGlobalPass(DetectionMixin, SamMixin, GeometryMixin, MasksMixin,
 
         final_samples = ctx.out_latents.to(ctx.samples.device) if ctx.out_device != ctx.samples.device else ctx.out_latents
         info = build_info(ctx, final_samples)
+
+        # ★ 终审 M-4：brief §七 要求「4 个节点**无条件**把自身耗时写进
+        #   `payload.perf[stage]`」，而 A/B/C 都写了、D 一条没写（规格未履行一半）。
+        #   D 不产出 payload（它返回 `(Latent, 检测信息)`），但手里就有上游那份
+        #   —— A/B/C 也正是就地往同一份里写，所以这里同样往**收到的那份**里补一笔。
+        #   当前全仓没有读者读 `payload.perf`（终审 grep 过）；补它是为了让规格成真、
+        #   让将来加读者时 4 个阶段都有数据。
+        检测数据.perf["global"] = time.time() - perf_start
 
         print(f"\n{'='*60}\n{info}\n{'='*60}\n")
         return ({"samples": final_samples}, info)

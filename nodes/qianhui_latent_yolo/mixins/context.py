@@ -2,7 +2,6 @@
 
 YoloConfig: 99 个 kwargs 解析结果，字段名与原局部变量名逐字一致，
            使阶段搬运成为机械替换（局部名 → cfg.局部名）。
-YoloRunContext: 跨阶段运行时状态 + cfg（T6 起保留，T13 删单体时一并撤）。
 DetectCtx / SamCtx / RepairCtx / GlobalCtx: T6 新增的 4 个**精简 Context** ——
            拆出的 4 个节点各拿自己那部分字段，见文件末尾。
 
@@ -165,74 +164,6 @@ class YoloConfig:
     use_latent_aware: bool = True   # 键: 使用Latent感知插值
 
 
-@dataclass(slots=True)
-class YoloRunContext:
-    """跨阶段运行时状态。
-
-    字段集由「步骤 1 扫描的跨阶段并集 ∩ 非 YoloConfig 字段」+ 阶段函数
-    所需的 process 形参构成：
-      - 配置项（99 个，kwargs 直读）一律走 `ctx.cfg.<名>`，不在本类重复，
-        否则每个都会成为死字段；
-      - 本类字段 = 阶段之间真正传递的**运行时状态**与**形参**。
-    """
-
-    cfg: YoloConfig
-
-    # ---- process 形参（阶段函数只拿到 node/ctx，故必须经 ctx 传递） ----
-    模型: Any = None
-    VAE: Any = None
-    正面提示: Any = None
-    负面提示: Any = None
-    seed: int = 0
-    步数: int = 20
-    CFG: float = 8.0
-    采样器: str = 'euler'
-    调度器: str = 'normal'
-    降噪: float = 1.0
-    放大算法: str = 'latent_aware'
-    放大倍数: float = 1.0
-
-    # ---- prepare → detect / repair / report 的解析结果与累积器 ----
-    yolo_models_to_use: List[str] = field(default_factory=list)
-    yolo_confidences_to_use: List[float] = field(default_factory=list)
-    has_cn: bool = False
-    has_hand_skeleton_cn: bool = False
-    sam_model_path: Optional[str] = None
-    perf_start_time: Any = None
-    class_rules: Any = None
-    target_classes: Any = None
-    samples: Any = None
-    batch_size: int = 0
-    out_device: Any = None
-    out_latents: Any = None
-    out_previews: List[torch.Tensor] = field(default_factory=list)
-    out_masks: List[torch.Tensor] = field(default_factory=list)
-    all_dets: List[Any] = field(default_factory=list)
-    ksampler: Any = None
-    pbar: Any = None
-    frame_history: Any = None
-    interrupted: bool = False
-    processed_count: int = 0
-    original_samples: Any = None
-
-    # ---- 逐帧运行时状态 ----
-    i: int = 0
-    base_pos: Any = None
-    base_neg: Any = None
-    pos_full: Any = None
-    neg_full: Any = None
-    base_latent: Any = None
-    latent_for_detection: Any = None
-    latent_h: int = 0
-    latent_w: int = 0
-    pixel_h: int = 0
-    pixel_w: int = 0
-    detection_mask: Any = None
-    detections: List[Any] = field(default_factory=list)
-    preview_image: Any = None
-    _decoded_np: Any = None
-    processed_latent: Any = None
-
 
 # ==================== 4 个精简 Context（T6，对应拆分后的 4 个节点） ====================
 #
@@ -240,22 +171,31 @@ class YoloRunContext:
 # 字段的归属由「哪个阶段真的读它」机检得来（AST 取 `ctx.<字段>` 的 Load 集），
 # 不是手抄的清单 —— 手抄会漏，而漏掉的字段在运行期**只在该分支被走到时**才炸。
 #
-# 归属（并集恰好 = YoloRunContext 的 50 个字段，一个不漏、一个不多）：
-#     DetectCtx ← detect.py ∪ report.py:finalize_interrupt ∪ report_bits.py:build_preview   = 41
-#     SamCtx    ← sam_refine.py                                                             =  3
-#     RepairCtx ← repair.py ∪ report_bits.py:build_masks                                    = 28
-#     GlobalCtx ← global_pass.py ∪ report_bits.py:build_info                                = 27
+# 归属（并集恰好 = 50 个字段名，一个不漏、一个不多）：
+#     DetectCtx ← detect.py ∪ node_detect.py:_finalize_interrupt ∪ report_bits.py:build_preview = 41
+#     SamCtx    ← sam_refine.py                                                                 =  3
+#     RepairCtx ← repair.py ∪ report_bits.py:build_masks                                        = 28
+#     GlobalCtx ← global_pass.py ∪ report_bits.py:build_info                                    = 26
 #
-# 为什么这么归：`finalize_interrupt`（中断回填）与 `build_preview` 归节点 A，
-# `build_masks` 归 C、`build_info` 归 D；`report.py:build_report` 那个编排壳是过渡态，
-# T13 会拆掉，它的读取是上面四者的子集，**不单独喂给任何 Context**。
+# 为什么这么归：`_finalize_interrupt`（中断回填，原 `report.py:finalize_interrupt`，
+# T13 随单体一并搬进节点 A）与 `build_preview` 归节点 A，`build_masks` 归 C、`build_info` 归 D。
 #
-# ★ `cfg` 四个类都要：每个阶段都读 `ctx.cfg.<旋钮>`，它在 YoloRunContext 里也是一个槽。
-#   它不是 YoloConfig 字段（那些走 `ctx.cfg.<名>`），所以这里保留为**必填**槽，
-#   与 YoloRunContext 一致（无默认值）。
+# ★ T13 已退役单体：`YoloRunContext` / `report.py` / `prepare_run` **都已删除**，
+#   本文件里不再有「原件」可供对账。这四个类现在的对账基准是**冻结快照** ——
+#   `tests/test_latent_split_guard.py::YOLO_RUN_CONTEXT_FIELD_SNAPSHOT`
+#   （T13 之前从**活的** `YoloRunContext` 逐字段 dump 的 50 条 `{名: (注解, 默认值)}`）。
+#   别再写「照抄 YoloRunContext」——那个类已经不存在了，改指快照。
 #
-# ★ 字段名与默认值**逐字照抄** YoloRunContext（含中文名如 `模型`/`步数`）：
-#   默认值不同会改运行期行为。声明顺序也照抄，便于与 YoloRunContext 逐行对账。
+# ★ `cfg` 四个类都要：每个阶段都读 `ctx.cfg.<旋钮>`，它在快照里也是一个槽。
+#   它不是 YoloConfig 字段（那些走 `ctx.cfg.<名>`），所以这里保留为**必填**槽（无默认值）。
+#
+# ★ 字段名与默认值**逐字对齐**冻结快照（含中文名如 `模型`/`步数`）：
+#   默认值不同会改运行期行为。声明顺序也按快照，便于逐行对账。
+#
+# ★ `GlobalCtx` 没有 `VAE` 槽：它唯一的读者是 `global_pass.py` 里 T13 删掉的那段死代码
+#   （`if ctx.preview_image is None: ... ctx.VAE ...`）。全图降噪节点**不声明 VAE 输入**，
+#   所以这个槽本就不该在 —— 是那条守卫（每个槽都要有来源读它）在 T13 后把它揪出来的。
+#   `VAE` 只由检测节点读（`detect.py` 解码预览图），并集仍是 50 靠的就是 `DetectCtx` 那一份。
 
 
 @dataclass(slots=True)
@@ -354,7 +294,6 @@ class GlobalCtx:
 
     cfg: YoloConfig
     模型: Any = None
-    VAE: Any = None
     seed: int = 0
     步数: int = 20
     CFG: float = 8.0
