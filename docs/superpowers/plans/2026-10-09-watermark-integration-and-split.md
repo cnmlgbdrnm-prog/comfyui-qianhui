@@ -1938,9 +1938,19 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 「注意事项」补**两条**（下面这个块里是两条，不是一条）：
 
 ```markdown
-- `Latent 智能修复` 与 `水印` 模块需要额外依赖：`pip install reedsolo`（隐形水印的 Reed-Solomon 纠错）。未安装时可见水印仍可用，隐形水印会报出带安装指引的错误。
+- `水印` 模块需要额外依赖：`pip install reedsolo`（隐形水印的 Reed-Solomon 纠错，需装到 ComfyUI 使用的 Python 环境）。未安装时可见水印仍可用，隐形水印会报出带安装指引的错误。
 - 整合自水印插件的 3 个节点**不保留旧注册名**（`LatentKSamplerUpscalerYOLO`、`WatermarkAdd`、`WatermarkExtract` 及中文别名），旧 workflow 需重新选择节点。
 ```
+
+> ⚠️ **上面第一条是订正过的（控制者，第 15 号计划缺陷）。** 原文写的是
+> 「`Latent 智能修复` 与 `水印` 模块需要额外依赖：`pip install reedsolo`」，
+> 这是**错的**：机读 `grep -rn "reedsolo" --include=*.py nodes/ __init__.py`，
+> 命中**全部**落在 `nodes/qianhui_watermark/**`，`qianhui_latent_yolo` 里
+> **零处**。Latent 修复节点不依赖 `reedsolo`，写上去会让用户以为不装它
+> 修复节点就会降级。`requirements.txt` 的内容是 `reedsolo` 一行，也与之一致。
+> 若你已按旧文写过 README，**改成上面这版**（同时按审查意见补了
+> 「需装到 ComfyUI 使用的 Python 环境」——运行期报错
+> `nodes/qianhui_watermark/payload.py:19` 就是这么提示的，只是 README 漏了）。
 
 **本步骤还有第三件事：`__init__.py` 的模块头也点了这些数，要一起改。**
 本任务叫「文档同步」，而 `__init__.py` 顶部的模块 docstring 就是文档，
