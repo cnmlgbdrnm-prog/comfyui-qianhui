@@ -255,9 +255,42 @@ def pkgs_dir(*parts: str) -> str:
     return os.path.join(ROOT, "nodes", *parts)
 ```
 
-- [ ] **步骤 2：写失败测试（水印算法层）**
+- [ ] **步骤 2：搬入测试（**不要手写**）**
 
-`tests/test_watermark.py` 开头：
+> ⚠️ **这一步以前是错的，已订正。** 旧版本在这里贴了一份「示例测试代码」，
+> 它是源测试的**缩水重写**（`test_adaptive_q` 只留了 5 个点、源文件是 11 个；
+> `test_rs_roundtrip` 换了输入；`test_invisible_psnr` 换了 PSNR 算式）。
+> 实现者照着抄，于是 17 个用例全在、断言边界却悄悄变松——**测试全绿但守不住东西**。
+> 现在改成：不手写，只做机械翻译，并用断言计数自检。
+
+**做法**：把源文件 `E:\comfuyui 插件\水印\test_watermark.py` 的 17 个用例**逐个翻译**成
+`tests/test_watermark.py` 里的 unittest 方法。只允许三处机械改写：
+
+| # | 源 | 目标 |
+|---|---|---|
+| 1 | `def test_x():` | 类内 `def test_x(self):` |
+| 2 | `from watermark_nodes import X` | 见下方模块映射表 |
+| 3 | `assert <expr>, "<msg>"` | `self.assertTrue(<expr>, "<msg>")`；比较式改 `self.assertEqual(<got>, <want>, "<msg>")` |
+
+**输入、断言边界、边界值、随机种子一个字都不许动。** 源测试的边界是实测出来的
+（`test_adaptive_q` 的 11 个点专门卡在 100/800/150/1000 四个阈值两侧；
+`test_rs_roundtrip` 的 64/72/80 三个 bit 偏移对应 1/2/3 字节损坏，第 3 次必须解不出来）。
+去掉源文件里的 `print("PASS ...")`。
+
+**符号 → 模块映射**（`from watermark_nodes import X` 按此拆开）：
+
+| 符号 | 模块 |
+|---|---|
+| `_dct8`、`_idct8`、`_get_block_q` | `qh_watermark.dct` |
+| `_encode_payload`、`_decode_payload` | `qh_watermark.payload` |
+| `_embed_invisible`、`_extract_invisible` | `qh_watermark.invisible` |
+| `_apply_visible_watermark` | `qh_watermark.visible` |
+| `WatermarkAdd` → `QianhuiWatermarkAdd`、`WatermarkExtract` → `QianhuiWatermarkExtract` | `qh_watermark.nodes` |
+
+**类分组**（只影响组织，不影响内容）：`TestDct`(2) / `TestPayload`(4) /
+`TestInvisible`(4) / `TestVisible`(3) / `TestNodes`(4)，合计 17。
+
+**开头样板**：
 
 ```python
 # -*- coding: utf-8 -*-
@@ -272,119 +305,53 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _loader import load_package, pkgs_dir  # noqa: E402
 
 WM = load_package("qh_watermark", pkgs_dir("qianhui_watermark"))
+```
 
+结尾照旧：
 
-class TestDct(unittest.TestCase):
-    def test_dct_roundtrip(self):
-        """DCT 后 IDCT 应还原原始块（误差 < 1e-9）"""
-        from qh_watermark.dct import _dct8, _idct8
-        rng = np.random.default_rng(42)
-        block = rng.random((8, 8)) * 255
-        reconstructed = _idct8(_dct8(block))
-        self.assertTrue(
-            np.allclose(block, reconstructed, atol=1e-9),
-            f"DCT round-trip error: max={np.abs(block - reconstructed).max()}",
-        )
-
-    def test_adaptive_q(self):
-        """块方差分档应返回 25 / 50 / 80，且提取阈值比嵌入阈值宽松"""
-        from qh_watermark.dct import _get_block_q
-        self.assertEqual(_get_block_q(50.0, embed=True), 25.0)
-        self.assertEqual(_get_block_q(400.0, embed=True), 50.0)
-        self.assertEqual(_get_block_q(2000.0, embed=True), 80.0)
-        # 提取侧死区更宽：120 在嵌入侧是 50，在提取侧仍是 25
-        self.assertEqual(_get_block_q(120.0, embed=True), 50.0)
-        self.assertEqual(_get_block_q(120.0, embed=False), 25.0)
-
-
-class TestPayload(unittest.TestCase):
-    def test_payload_roundtrip_ascii(self):
-        from qh_watermark.payload import _encode_payload, _decode_payload
-        text = "© Alice 2026"
-        self.assertEqual(_decode_payload(_encode_payload(text)), text)
-
-    def test_payload_roundtrip_cjk(self):
-        from qh_watermark.payload import _encode_payload, _decode_payload
-        text = "版权所有 张三"
-        self.assertEqual(_decode_payload(_encode_payload(text)), text)
-
-    def test_decode_no_sync(self):
-        from qh_watermark.payload import _decode_payload
-        self.assertEqual(_decode_payload([0, 1] * 64), "")
-
-    def test_rs_roundtrip(self):
-        """RS 编码能纠正 2 字节错误"""
-        from qh_watermark.payload import _encode_payload, _decode_payload
-        bits = _encode_payload("hello")
-        flipped = bits[:]
-        for i in (70, 71, 72):          # 翻一个字节内的 3 个 bit
-            flipped[i] ^= 1
-        self.assertEqual(_decode_payload(flipped), "hello")
-
-
-class TestInvisible(unittest.TestCase):
-    def _img(self, h=256, w=256, seed=0):
-        rng = np.random.default_rng(seed)
-        return rng.integers(0, 256, (h, w, 3), dtype=np.uint8)
-
-    def test_invisible_roundtrip(self):
-        from qh_watermark.invisible import _embed_invisible, _extract_invisible
-        img = self._img()
-        out = _embed_invisible(img, "版权所有 2026")
-        self.assertEqual(out.shape, img.shape)
-        self.assertEqual(_extract_invisible(out), "版权所有 2026")
-
-    def test_invisible_no_watermark(self):
-        from qh_watermark.invisible import _extract_invisible
-        # 纯噪声图不应解出有效水印
-        self.assertEqual(_extract_invisible(self._img(seed=7)), "")
-
-    def test_invisible_psnr(self):
-        """嵌入后 PSNR 应高于 30dB（肉眼不可见）"""
-        from qh_watermark.invisible import _embed_invisible
-        img = self._img(h=512, w=512)
-        out = _embed_invisible(img, "版权")
-        mse = np.mean((img.astype(np.float64) - out.astype(np.float64)) ** 2)
-        psnr = 10 * np.log10(255.0 ** 2 / max(mse, 1e-12))
-        self.assertGreater(psnr, 30.0, f"PSNR 过低: {psnr:.2f}dB")
-
-    def test_invisible_capacity_error(self):
-        """图像太小应抛 ValueError"""
-        from qh_watermark.invisible import _embed_invisible
-        with self.assertRaises(ValueError):
-            _embed_invisible(self._img(h=64, w=64), "x" * 500)
-
-
-class TestVisible(unittest.TestCase):
-    def _img(self, h=128, w=128):
-        return np.full((h, w, 3), 128, dtype=np.uint8)
-
-    def test_visible_text_shape(self):
-        from qh_watermark.visible import _apply_visible_watermark
-        out = _apply_visible_watermark(
-            self._img(), "文字", "测试", 0.5, 40, -30, 24, "#FF0000", None
-        )
-        self.assertEqual(out.shape, (128, 128, 3))
-        self.assertEqual(out.dtype, np.uint8)
-
-    def test_visible_invalid_color_fallback(self):
-        """非法颜色串应回退白色且不抛异常"""
-        from qh_watermark.visible import _hex_to_rgb
-        self.assertEqual(_hex_to_rgb("#GGGGGG"), (255, 255, 255))
-        self.assertEqual(_hex_to_rgb("#FF0000"), (255, 0, 0))
-
-    def test_visible_image_wm_missing_fallback(self):
-        """图片模式但未接图 → 回退文字模式"""
-        from qh_watermark.visible import _apply_visible_watermark
-        out = _apply_visible_watermark(
-            self._img(), "图片", "回退", 0.5, 40, 0, 24, "#FFFFFF", None
-        )
-        self.assertEqual(out.shape, (128, 128, 3))
-
-
+```python
 if __name__ == "__main__":
     unittest.main()
 ```
+
+**唯一允许的偏离**：源 `test_invisible_capacity_error` 用的是 `try/except` 且**没有断言**
+（不抛异常时只 `print("FAIL ...")`，测试照样通过）。按它 docstring 的意图
+（"payload 超容量应抛 ValueError"）写成 `with self.assertRaises(ValueError):`——
+这是**强化**，要在文件注释里写明。除此之外不得偏离。
+
+**搬完的自检（数字必须完全对上，对不上就是翻译时改了东西）**：
+
+```bash
+python -X utf8 - <<'PYEOF'
+import ast, io, re
+def cases(p):
+    t = ast.parse(io.open(p, encoding="utf-8").read())
+    out = {}
+    for n in ast.walk(t):
+        if isinstance(n, ast.FunctionDef) and n.name.startswith("test_"):
+            out[n.name] = sum(
+                1 for x in ast.walk(n)
+                if isinstance(x, ast.Assert)
+                or (isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute)
+                    and x.func.attr.startswith("assert"))
+            )
+    return out
+s = cases(r"E:\comfuyui 插件\水印\test_watermark.py")
+p = cases("tests/test_watermark.py")
+print("用例数  源=%d 移植=%d" % (len(s), len(p)))
+print("断言数  源=%d 移植=%d" % (sum(s.values()), sum(p.values())))
+for k in s:
+    a, b = s[k], p.get(k)
+    mark = "" if (isinstance(b, int) and b >= a) else "   <== 变弱了！"
+    print("  %-38s 源=%-3d 移植=%-3s%s" % (k, a, b, mark))
+print("缺失:", [k for k in s if k not in p])
+print("多出:", [k for k in p if k not in s])
+PYEOF
+```
+
+Expected：用例数 17/17、断言数 **源=33 移植=34**（多出的 1 个正是下面那条预期强化的
+`test_invisible_capacity_error` 源=0→移植=1，其余 16 个用例必须逐行相等）；
+逐行无 `变弱了！`；`缺失: []`、`多出: []`。**移植数低于源数就是漏搬了断言**，逐个补回。
 
 - [ ] **步骤 3：跑测试，确认失败**
 
