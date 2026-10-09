@@ -1881,6 +1881,13 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 | 水印插件 | Latent YOLO 智能修复（含 SAM/ControlNet）、水印添加、水印提取 |
 ```
 
+> ⚠️ **加行的同时必须把表上方那句话里的「四个」改成「五个」。**
+> 那句现在逐字是：`ComfyUI 综合提示词插件，由四个历史插件整合而成：`（README:3）。
+> 表里现**恰好 4 行**（`comfyui-FMC` / `ComfyUIcustom_nodes` / `confyui-pose` /
+> `commfyui-loraxy`，机读确认），你加完就是 5 行 —— 句子不改就会当场变成
+> 「由四个……整合而成」下面摆着一张五行表，自相矛盾。
+> 全 README 只有这一处写插件个数（机读确认），改它一处即可。
+
 「节点列表」表追加三行：
 
 ```markdown
@@ -1918,6 +1925,15 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 > 另外 `#` 注释的对齐列会因新名字更长而变，建议一并把 `nodes/` 子树的注释列重新对齐
 > （`qianhui_latent_yolo/` 比 `lora_grid_node.py` 长 3 个字符）。
 > 这两件事简报没写，但「目录结构与代码一致」是完成标准，画歪了不算完成。
+>
+> ⚠️ **还有第三处，本步必须一起改：树的第 1 行有个人工点数。**
+> 现 README 是 `├── __init__.py          # 注册入口 (10 节点统一 Qianhui 前缀)`。
+> 本次新增 3 个节点后**实测总数是 13**（机读 `__init__.py`：11 处
+> `NODE_CLASS_MAPPINGS["…"] = …` 直接赋值 + `NODE_CLASS_MAPPINGS.update({…})`
+> 里的 `QianhuiStoryComposer`/`QianhuiStoryScheduler` 2 个 = 13）。
+> 把 `10 节点` 改成 `13 节点`，否则文档与代码当场不符 —— 这一行的可见度很高，
+> 就在树顶上。你的完成标准里有「目录结构与代码一致」，这一处漏了就自相矛盾。
+> （除这一行外，全 README 再没有第二处「N 节点」这类人工点数，机读确认过。）
 
 「注意事项」补**两条**（下面这个块里是两条，不是一条）：
 
