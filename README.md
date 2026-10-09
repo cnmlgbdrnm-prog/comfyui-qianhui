@@ -101,5 +101,5 @@ comfyui-qianhui/
   建议重新检查一遍参数。
 - 肢体动作师、战斗指挥官、场景光效大师改为**纯标签输出**（不含 `(tag:1.2)` 权重）。
   需要加权重时，在后续的提示词节点里自行书写。
-- `Latent 智能修复` 与 `水印` 模块需要额外依赖：`pip install reedsolo`（隐形水印的 Reed-Solomon 纠错）。未安装时可见水印仍可用，隐形水印会报出带安装指引的错误。
+- `水印` 模块需要额外依赖：`pip install reedsolo`（隐形水印的 Reed-Solomon 纠错，需装到 ComfyUI 使用的 Python 环境）。未安装时可见水印仍可用，隐形水印会报出带安装指引的错误。
 - 整合自水印插件的 3 个节点**不保留旧注册名**（`LatentKSamplerUpscalerYOLO`、`WatermarkAdd`、`WatermarkExtract` 及中文别名），旧 workflow 需重新选择节点。
