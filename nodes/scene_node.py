@@ -12,7 +12,7 @@ Krea 2 适配：画面画质风格 内置 Krea 2 画风词库 —— Krea 2 (Qwe
 以自然语言风格短语为主, 含官方 Moodboard 画风(电影微距/巨构/粗粝写实、霓虹黑色电影、
 霓虹 VHS、霓虹剪影)与官方风格 LoRA 触发词(如 neon noir fog style / emerald haze style),
 以及 Krea2 Me 正向质量词, 供 Krea 2 系列模型用户选择。
-数据流：内置 SCENE_DATA 选项 -> 提取 (括号内英文) -> 拼接 -> 加权输出 STRING。
+数据流：内置 SCENE_DATA 选项 -> 提取 (括号内英文) -> 拼接 -> 纯标签输出 STRING。
 外部依赖：无（仅标准库）。
 """
 

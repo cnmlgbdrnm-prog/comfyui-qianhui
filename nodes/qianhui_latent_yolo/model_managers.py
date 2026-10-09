@@ -4,6 +4,15 @@ import os
 
 import folder_paths
 
+# 源文件 `水印/nodes.py` 就放在插件根目录，所以它那句
+# `os.path.dirname(__file__)` 指的就是**插件根**，`models/sam` 即
+# `<插件根>/models/sam`。搬进 `nodes/qianhui_latent_yolo/` 后 `__file__`
+# 深了两层，直接照搬会静默指向 `nodes/qianhui_latent_yolo/models/sam`
+# ——一个永远不会存在的地方。这里补回两层，恢复原有语义。
+# （这是搬运中唯一一处**必须**改动的路径解析：字节对拍看不出这种错，
+#   因为方法体一个字没变，变的是 `__file__` 本身指到哪。）
+_PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 # ============================================================
 # YOLO模型管理
@@ -110,7 +119,7 @@ class SAMModelManager:
         possible_dirs = [
             "models/sam",
             "models/SAM",
-            os.path.join(os.path.dirname(__file__), "models", "sam"),
+            os.path.join(_PLUGIN_ROOT, "models", "sam"),
         ]
 
         for d in possible_dirs:

@@ -261,7 +261,7 @@ def pkgs_dir(*parts: str) -> str:
 > 它是源测试的**缩水重写**（`test_adaptive_q` 只留了 5 个点、源文件是 11 个；
 > `test_rs_roundtrip` 换了输入；`test_invisible_psnr` 换了 PSNR 算式）。
 > 实现者照着抄，于是 17 个用例全在、断言边界却悄悄变松——**测试全绿但守不住东西**。
-> 现在改成：不手写，只做机械翻译，并用断言计数自检。
+> 现在改成：不手写，只做机械翻译，并用下面的**逐值对拍门**自检（不是数条数——条数看不出取值被改过）。
 
 **做法**：把源文件 `E:\comfuyui 插件\水印\test_watermark.py` 的 17 个用例**逐个翻译**成
 `tests/test_watermark.py` 里的 unittest 方法。只允许三处机械改写：

@@ -17,6 +17,7 @@
 不会真的失败），此处按它的 docstring 意图写成 `assertRaises`——这是强化，
 不是改写，并已在此注明。
 """
+import importlib.util
 import os
 import sys
 import unittest
@@ -24,9 +25,23 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _loader import load_package, pkgs_dir  # noqa: E402
+from _loader import pkgs_dir  # noqa: E402
 
-WM = load_package("qh_watermark", pkgs_dir("qianhui_watermark"))
+# 只把包**注册**进 sys.modules，不执行它的 __init__.py。
+#
+# 为什么：`__init__.py` 会 `from .nodes import ...` → `import torch`。
+# 若在这里 exec 它，torch 就成了**整个模块**的导入期依赖——13 个纯 numpy 的
+# 算法用例会因为 import torch 失败而整体报错，而不是让 4 个节点用例单独跳过。
+# 源测试特意在每个节点用例**内部**才 `import torch`，就是为了让算法层独立；
+# 这里用不执行 __init__ 的注册方式保住同样的分层。
+# 子模块导入照常可用：Python 在 sys.modules 里找到 qh_watermark 后，
+# 用它的 __path__ 去定位 qh_watermark.dct / .payload / ... ，不会回头跑 __init__。
+_PKG_DIR = pkgs_dir("qianhui_watermark")
+_spec = importlib.util.spec_from_file_location(
+    "qh_watermark", os.path.join(_PKG_DIR, "__init__.py"),
+    submodule_search_locations=[_PKG_DIR],
+)
+sys.modules["qh_watermark"] = importlib.util.module_from_spec(_spec)
 
 
 class TestDct(unittest.TestCase):
@@ -237,7 +252,9 @@ class TestNodes(unittest.TestCase):
         )
         self.assertFalse(torch.equal(original, watermarked), "invisible watermark had no effect")
         diff = (original - watermarked).abs().max().item()
-        # conservative bound; actual max ~0.07（源测试行尾注释，原样搬运）
+        # 源测试行尾注释原文："conservative bound; actual max ~0.07"。
+        # 该实测值已过时——本模块实际测量约 0.2076，仍远低于 0.40 的界。
+        # 断言本身照搬源文件未动；这行注释只是不再复述那个假数字。
         self.assertTrue(diff < 0.40, f"Invisible watermark caused large pixel diff: {diff}")
 
     def test_node_watermarkextract_roundtrip(self):

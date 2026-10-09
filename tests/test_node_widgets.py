@@ -146,6 +146,27 @@ class TestDeletedWidgets(unittest.TestCase):
             left = sorted(gone & keys)
             self.assertEqual(left, [], f"{key} 仍存在待删控件: {left}")
 
+    def test_no_bare_deleted_widget_name_left(self):
+        """已删控件的**去前缀名**在源码里不得残留（含注释与 docstring）。
+
+        为什么需要这条：本任务的头号风险是「漏删某个读点」——比如
+        `manual = kwargs.get("手动补充", "")` 忘了删。这类残留**不会抛异常**
+        （`kwargs.get` 有默认值），输出也可能一字不差，所以
+        `test_default_kwargs_call_does_not_raise` 抓不到；
+        而 `test_source_has_no_old_key_leftovers` 查的是**带前缀**的旧名
+        （`06_手动补充`），也抓不到裸名。两条都过，bug 就在。
+        这里直接查裸名，把那个盲区堵上。
+        """
+        for key, gone in DELETED.items():
+            module_file = FILES[key][0]
+            src = io.open(os.path.join(NODES_DIR, module_file), encoding="utf-8").read()
+            left = sorted(n for n in gone if n in src)
+            self.assertEqual(
+                left, [],
+                f"{module_file} 残留已删控件的裸名: {left}"
+                "（读点未删干净，或注释/docstring 还在指已不存在的控件）",
+            )
+
     def test_default_kwargs_call_does_not_raise(self):
         """用 INPUT_TYPES 默认值调用生成函数，不应抛 KeyError（防漏删引用）"""
         for key in FILES:
