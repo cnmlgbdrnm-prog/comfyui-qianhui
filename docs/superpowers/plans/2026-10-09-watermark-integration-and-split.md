@@ -625,7 +625,7 @@ class TestBlends(unittest.TestCase):
         src, dst = self._pair()
         mask = torch.zeros(1, 1, 8, 8)
         mask[:, :, 2:6, 2:6] = 1.0
-        out = LA.mpb_blend_latent(src, dst, mask, keep=0.5)
+        out = LA.mpb_blend_latent(src, dst, mask, color_preserve=0.5)
         self.assertEqual(tuple(out.shape), tuple(dst.shape))
 
     def test_smart_soft_blend_shape(self):
@@ -640,13 +640,15 @@ class TestColorMatch(unittest.TestCase):
     def test_simple_color_match_shape(self):
         src = torch.rand(1, 4, 8, 8)
         ref = torch.rand(1, 4, 8, 8)
-        out = LA.simple_color_match(src, ref)
+        mask = torch.ones(1, 1, 8, 8)
+        out = LA.simple_color_match(src, ref, mask)
         self.assertEqual(tuple(out.shape), tuple(src.shape))
 
     def test_frequency_aware_color_match_shape(self):
         src = torch.rand(1, 4, 8, 8)
         ref = torch.rand(1, 4, 8, 8)
-        out = LA.frequency_aware_color_match(src, ref, strength=0.5)
+        mask = torch.ones(1, 1, 8, 8)
+        out = LA.frequency_aware_color_match(src, ref, mask, strength=0.5)
         self.assertEqual(tuple(out.shape), tuple(src.shape))
 
 
@@ -679,7 +681,20 @@ import torch.nn.functional as F
 - [ ] **步骤 4：跑测试，确认通过**
 
 Run: `python -X utf8 tests/test_latent_algorithms.py`
-Expected: `OK`，12 个用例全过。若有断言失败，说明方法在搬运中被动过——对照源文件修正，**不要改断言**。
+Expected: `OK`，**11 个用例**全过（不是 12——这里以前写错了一个）。若有断言失败，说明方法在搬运中被动过——对照源文件修正，**不要改断言**。
+
+> ⚠️ **上面这段测试的调用点已用 AST 逐一核对过源签名**（`LatentAlgorithms` 的 9 个
+> `@staticmethod`，源 113/153/170/216/280/324/422/475/520）。早期版本有 3 处调用点写错，
+> 会直接 `TypeError`——**这个测试从来没有也不可能对源插件跑通过**：
+>
+> | 方法 | 真实签名 | 早期错误写法 |
+> |---|---|---|
+> | `simple_color_match` | `(src, ref, mask, strength=0.8)` | 漏了 `mask` |
+> | `frequency_aware_color_match` | `(src, ref, mask, strength=0.6)` | 漏了 `mask` |
+> | `mpb_blend_latent` | `(src, dst, mask, color_preserve=0.5)` | 关键字写成了 `keep=` |
+>
+> 若你从任何旧稿里抄这段测试，先按上表核对调用点。**别为了让测试过而去改 `algorithms.py` 的签名**——
+> 那些签名是源插件的对外契约，搬运时不得改动。
 
 - [ ] **步骤 5：搬入其余支撑模块**
 
