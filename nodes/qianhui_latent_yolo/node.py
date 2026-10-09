@@ -4,24 +4,10 @@
 Detection → Sam → Geometry → Masks → Policy → Inpaint → LatentKSamplerUpscaler
 基类置于末位以保证 upscale_latent 可解析。
 """
-import os
-import time
-import random
-import numpy as np
-import torch
-import torch.nn.functional as F
-import folder_paths
 import comfy.samplers
-import comfy.sample
-import comfy.utils
-import comfy.model_management
-import comfy.controlnet
-import nodes  # ComfyUI 根目录的 nodes.py，取 nodes.KSampler()
 
-from .algorithms import LatentAlgorithms
 from .model_managers import YOLOModelManager, SAMModelManager
 from .model_cache import YOLOModelCache
-from .controlnet import ControlNetHelper
 from .base_node import LatentKSamplerUpscaler
 from .mixins.detection import DetectionMixin
 from .mixins.sam import SamMixin

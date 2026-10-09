@@ -136,8 +136,9 @@ try:
     @PromptServer.instance.routes.get("/qianhui_role_data")
     async def qianhui_role_data(request):
         return web.json_response(build_payload())
-except Exception:
-    pass
+except Exception as e:
+    # 「注册失败不影响节点」= 不阻断节点注册，不是「失败也无人知晓」。
+    print(f"❌ 千绘 前端联动数据路由加载失败: {e}")
 
 # 8c. 配置预设数据路由（注册失败不影响节点）
 try:
@@ -148,7 +149,8 @@ try:
     @PromptServer.instance.routes.get("/qianhui_preset_data")
     async def qianhui_preset_data(request):
         return web.json_response(preset_payload())
-except Exception:
-    pass
+except Exception as e:
+    # 同上：路由挂了只是前端拿不到表，后端兜底照常生效，但必须留下痕迹。
+    print(f"❌ 千绘 配置预设数据路由加载失败: {e}")
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
