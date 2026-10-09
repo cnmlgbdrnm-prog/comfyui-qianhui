@@ -154,9 +154,28 @@ def parse_config(kwargs) -> YoloConfig:
     cfg.clarity_strength = float(kwargs.get("清晰度恢复强度", 0.3) or 0.3)
     cfg.use_latent_aware = bool(kwargs.get("使用Latent感知插值", True))
 
-    from ...presets import apply_preset, NO_PRESET
-    # 预设名从 kwargs 取，**不是**从 cfg 取 —— 见下方警告。
-    apply_preset(cfg, kwargs.get("配置预设") or NO_PRESET)
+    # 延迟导入（import 留在函数内）：`presets` 不能成为 node.py 的**模块级**硬依赖，
+    # 否则 presets.py 一坏，整个包 import 失败，节点直接在菜单里消失（da27cc3 的初衷）。
+    # 但只把 import 挪进来还不够：那样坏掉时症状会从「节点消失」翻成
+    # 「节点在，但每次执行都抛 ImportError」—— 降级方向被弄反了。
+    # 所以这里补上兜底：**预设后端不可用时降级为「不套用预设」**，节点照常跑。
+    # 兜底不是静默：根部 __init__.py 的 `# 8c.` 块 import 同一个模块，
+    # 失败时会在启动日志里打 ❌（该 print 是本计划早先加的）。
+    try:
+        from ...presets import apply_preset, NO_PRESET
+    except Exception:
+        # 故意不写 `except ImportError`：SyntaxError 不是 ImportError 的子类，
+        # 而「presets.py 写坏了」最常见的形态恰恰是语法错误 —— 只接 ImportError
+        # 会让这种坏法重新变成「每次执行都炸」。
+        apply_preset = None
+        # NO_PRESET 置 None 而不是再抄一份 "[不使用预设]" 字面量：
+        # 它唯一的消费者就是上面这个 apply_preset，而这里它恒为 None，
+        # 所以这个值永远不会被读到 —— 抄字面量只会多一处可能漂移的重复。
+        NO_PRESET = None
+
+    if apply_preset is not None:
+        # 预设名从 kwargs 取，**不是**从 cfg 取（cfg 里没有 `配置预设` 这个字段）。
+        apply_preset(cfg, kwargs.get("配置预设") or NO_PRESET)
 
     return cfg
 

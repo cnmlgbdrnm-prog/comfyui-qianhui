@@ -452,19 +452,31 @@ class TestPresets(unittest.TestCase):
         self.assertLessEqual(fast["修复轮次"], extreme["修复轮次"])
 
     def test_missing_field_does_not_raise(self):
-        """cfg 缺字段时只覆盖存在的键，不抛异常——且**不能凭空造出新属性**。"""
+        """cfg 缺字段时只覆盖存在的键，不抛异常——且**不能凭空造出新属性**。
+
+        ★ 断言 3 在 `YoloConfig` 加上 `slots=True` 之后换了写法，理由说清楚：
+        原来它用 `set(vars(cfg))` 前后取快照比集合，只能证明「**这一次**调用没造
+        出新属性」。`slots=True` 把这件事从「事后抽查」变成「解释器强制」——
+        类里没有 `__dict__`，写任何未声明字段直接 `AttributeError`。
+        所以现在直接验证**那道闸门本身**：既证明能力没退化，
+        又覆盖到别的调用点（`vars()` 也正好在 slots 类上会 `TypeError`，
+        不换写法这条用例会直接红，而不是静默失去意义）。
+        """
         pres = self._pres()
         cfg = self._cfg()
-        before = set(vars(cfg))
         pres.apply_preset(cfg, "快速模式(低质量)")
         # 断言 1：不抛异常（走到这里即成立）
         # 断言 2：真属性被改了（用真 cfg 才有意义）
         self.assertEqual(cfg.region_steps, 12)
-        # 断言 3：没有多出预设表之外的属性
-        self.assertTrue(
-            set(vars(cfg)) <= before | set(pres.PRESETS["快速模式(低质量)"]),
-            "apply_preset 造出了配置类里本不存在的属性",
+        # 断言 3：容器确实带 slots —— 写未声明属性会当场 AttributeError，
+        #         「凭空造出新属性」在解释器层已不可能。
+        self.assertFalse(
+            hasattr(cfg, "__dict__"),
+            "YoloConfig 应带 @dataclass(slots=True)；一旦有了 __dict__，"
+            "写错字段名（region_step vs region_steps）就会静默新建属性、真字段不动",
         )
+        with self.assertRaises(AttributeError):
+            cfg.definitely_not_a_field = 1
 
     def test_every_preset_key_maps_to_a_real_config_field(self):
         """★ 本组最要紧的一条。

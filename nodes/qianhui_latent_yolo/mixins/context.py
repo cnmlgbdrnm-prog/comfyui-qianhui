@@ -3,6 +3,13 @@
 YoloConfig: 99 个 kwargs 解析结果，字段名与原局部变量名逐字一致，
            使阶段搬运成为机械替换（局部名 → cfg.局部名）。
 YoloRunContext: 跨阶段运行时状态 + cfg。
+
+★ 两个类都带 `slots=True`，这不是性能优化，是**防笔误**：
+   字段名是「原局部变量名逐字照搬」来的（`region_steps` / `region_step`、
+   `handoff` / `hand_off` 这种一字之差肉眼极难发现）。普通 dataclass 上
+   `ctx.region_step = 5` 会**静默新建一个属性**，真字段一动不动 ——
+   与本计划已经踩过一次的 Critical 是同一种失败形状。
+   `slots=True` 让「写未声明属性」当场 `AttributeError`，把静默改判成崩溃。
 """
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -10,7 +17,7 @@ from typing import Any, Dict, List, Optional
 import torch
 
 
-@dataclass
+@dataclass(slots=True)
 class YoloConfig:
     """99 个 kwargs 解析结果。字段名 = 原局部变量名，逐字不改写。
 
@@ -156,7 +163,7 @@ class YoloConfig:
     use_latent_aware: bool = True   # 键: 使用Latent感知插值
 
 
-@dataclass
+@dataclass(slots=True)
 class YoloRunContext:
     """跨阶段运行时状态。
 

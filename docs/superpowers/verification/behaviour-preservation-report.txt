@@ -1,0 +1,127 @@
+==============================================================================
+拆分行为保持 —— 对拍报告（由脚本生成，勿手改）
+生成：python -X utf8 docs/superpowers/verification/verify_split_behaviour_preservation.py
+==============================================================================
+
+源（外部、只读）：E:\comfuyui 插件\水印\nodes.py
+新包：            nodes\qianhui_latent_yolo
+
+源指纹：md5=ef9bd4eb387b4284e0756f6349f0263a  bytes=279742  lines=5633
+
+------------------------------------------------------------------------------
+§1 函数计数（口径：def + async def + lambda，含嵌套）
+------------------------------------------------------------------------------
+源   ：def 93 + lambda 12 = 105
+新包 ：def 100 + lambda 12 = 112
+
+------------------------------------------------------------------------------
+§2 函数级：按名配对 + 三种获批改写后逐字节比对
+------------------------------------------------------------------------------
+源函数名去重 87 个；新包中**没有同名函数**的 = 0 个 
+
+配对成立 103 对 → 逐字节相同 100，不同 3
+
+不同的条目（逐个说明理由；理由必须成立，否则就是回归）：
+  * get_sam_dir      源 @633    →  nodes\qianhui_latent_yolo\model_managers.py:116
+      新代码改用 folder_paths 的路径解析，去掉了源里的 os.path 兜底分支
+  * __init__         源 @1517   →  nodes\qianhui_latent_yolo\node.py:227
+      聚合类 QianhuiLatentYOLO.__init__：新基类链用 super().__init__()，源用 `super().__init__() if hasattr(super(),'__init__') else None` 的兼容写法
+  * process          源 @4131   →  nodes\qianhui_latent_yolo\node.py:239
+      源 1476 行的巨型 process() 被拆成 node.process + 7 个阶段函数（本脚本 §3 逐语句对拍）
+
+源侧落空 2 个（同名条目在新包中已被配对用完）：
+  - LatentKSamplerUpscaler.INPUT_TYPES 源 @1243（body 736 字节）
+  - LatentKSamplerUpscaler.process 源 @1284（body 714 字节）
+    ★ 落空的两条**都**属于 `LatentKSamplerUpscaler` —— 源里那个
+      **未被注册**的基类。`base_node.py` 的 docstring 明写：
+      「仅保留 upscale_latent —— 源类 LatentKSamplerUpscaler 的
+       INPUT_TYPES 与 process 从未被调用（该基类未注册），不再移植。」
+      → 不是漏搬，是有意丢弃，且有据可查。
+
+新包侧新增 docstring 的配对 0 对（第 3 种获批改写，两侧都已剥掉再比）：
+
+新包侧未配对 9 个（拆分新增 / 改名 / 新功能的产物）：
+  + run_detection        nodes\qianhui_latent_yolo\mixins\pipeline\detect.py @11
+  + run_global_pass      nodes\qianhui_latent_yolo\mixins\pipeline\global_pass.py @7
+  + parse_config         nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @11
+  + prepare_run          nodes\qianhui_latent_yolo\mixins\pipeline\prepare.py @183
+  + run_repair           nodes\qianhui_latent_yolo\mixins\pipeline\repair.py @11
+  + finalize_interrupt   nodes\qianhui_latent_yolo\mixins\pipeline\report.py @11
+  + build_report         nodes\qianhui_latent_yolo\mixins\pipeline\report.py @41
+  + apply_preset         nodes\qianhui_latent_yolo\presets.py @93
+  + as_payload           nodes\qianhui_latent_yolo\presets.py @115
+
+三种获批改写的命中次数（整个新包 / 整个源文件）：
+    \bcfg\.        新   382 / 源     0
+    \bctx\.        新   661 / 源     0
+    \bnode\.       新    57 / 源     0
+    源侧全 0 = 改写方向只有「新 → 源」一种，源文件里根本没有这三种形态，
+    所以「改写」不可能在源侧掩盖任何差异。
+
+------------------------------------------------------------------------------
+§3 语句级：源 process() 的叶子语句 vs 承接它的 8 个函数
+------------------------------------------------------------------------------
+源 process()：同名 2 个，取最大者 @line 4131-5606（1476 行）= 主节点
+    全部语句 887 条；**叶子语句** 674 条
+
+    node.py                            process            叶子    7 条
+    mixins/pipeline/prepare.py         parse_config       叶子  105 条
+    mixins/pipeline/prepare.py         prepare_run        叶子   58 条
+    mixins/pipeline/detect.py          run_detection      叶子  196 条
+    mixins/pipeline/repair.py          run_repair         叶子  237 条
+    mixins/pipeline/global_pass.py     run_global_pass    叶子   40 条
+    mixins/pipeline/report.py          finalize_interrupt 叶子   15 条
+    mixins/pipeline/report.py          build_report       叶子   32 条
+    承接口合计 叶子 690 条
+
+多重集比对：源 674 条，新版 690 条，**逐字命中 672 条**（99.7%）
+
+源多出 2 条（即「新版没承接的」，**每一条都必须有理由**）：
+  x1  print(f'[Latent YOLO智能处理+ControlNet V6.11.2] 批量: {batch_size}')
+      版本横幅 V6.11.2 → V6.11.3，拆分计划强制
+  x1  yolo_model = self.yolo_cache.load_model(yolo_models_to_use[0], precision=inference_precision) if hasattr(self, 'yolo_cac
+      新侧写作 hasattr(node, 'yolo_cache')：三种获批改写只覆盖 `node.x`，不覆盖以值的形式出现的裸 `node`，故此处对不上（属口径边界，非行为差异）
+
+新版多出 18 条（拆分脚手架 / 新功能 / 获批改写产物）：
+  x1  NO_PRESET = None
+  x1  apply_preset = None
+  x1  apply_preset(cfg, kwargs.get('配置预设') or NO_PRESET)
+  x1  cfg = YoloConfig()
+  x1  cfg = parse_config(kwargs)
+  x1  ctx = YoloRunContext(cfg=cfg, 模型=模型, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 步数=步数, CFG=CFG, 采样器=采样器, 调度器=调度器, 降噪=降噪, 
+  x1  ctx = prepare_run(self, kwargs, Latent=Latent, VAE=VAE, 正面提示=正面提示, 负面提示=负面提示, seed=seed, 模型=模型, 步数=步数, CFG=CFG, 采样器=采样器,
+  x1  finalize_interrupt(self, ctx)
+  x1  from ...presets import apply_preset, NO_PRESET
+  x1  i = i
+  x1  print(f'[Latent YOLO智能处理+ControlNet V6.11.3] 批量: {batch_size}')
+  x1  return build_report(self, ctx)
+  x1  return cfg
+  x1  return ctx
+  x1  run_detection(self, ctx)
+  x1  run_global_pass(self, ctx)
+  x1  run_repair(self, ctx)
+  x1  yolo_model = self.yolo_cache.load_model(yolo_models_to_use[0], precision=inference_precision) if hasattr(node, 'yolo_cac
+
+注：新版多出的 18 条里，与「配置预设」后端有关（含 presets 兜底）的 4 条，
+    其余 14 条全是拆分脚手架（把局部变量搬上 ctx/cfg、把巨型 process 切成阶段调用）。
+    另外：`配置预设` 这个**控件本身在源文件里就已存在**
+    （源 nodes.py:1372-1373「V6.6 配置预设」），新版只是补上了它的后端 ——
+    所以 `INPUT_TYPES` 能逐字节相同，不是漏改。
+
+------------------------------------------------------------------------------
+§4 与整分支复审所报数字的核对
+------------------------------------------------------------------------------
+  复审所报                                | 本次实算
+  源函数 105                              | 105   一致
+  新包函数 112                            | 112   一致
+  源函数缺失 0                            | 按名缺失 0（按同名条目落空 2）
+  按名配对 112 → 逐字节相同 109，不同 3   | 配对 103 → 相同 100，不同 3
+  process() 叶子语句 902 → 命中 901       | 叶子 674 → 命中 672
+
+复审所报「不同的 3 个」= __init__、get_sam_dir、process
+本次实算的「不同」    = __init__、get_sam_dir、process
+
+==============================================================================
+结论：函数级「不同」恰为已登记的 3 个；语句级源侧丢失恰为已登记的 2 条；
+      其余全部逐字相同。拆分**未发现未登记的行为变化**。
+==============================================================================
