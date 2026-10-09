@@ -1803,6 +1803,18 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 | 千绘 · 水印提取 | `QianhuiWatermarkExtract` | 提取 DCT-QIM 隐形水印文本 |
 ```
 
+**同一步里还要改 README 第 15 行的分组清单** —— 它现在写的是：
+
+> 节点在右键菜单中的分组统一为 **千绘/**（提示词、剧情、角色、场景、动作、姿势、战斗、网格）。
+
+那 8 个正好是**既有**节点的分组，本次新增了**两个**分类，不补就会当场变成错的。
+改成 `（提示词、剧情、角色、场景、动作、姿势、战斗、网格、修复、水印）`。
+
+实测依据（`grep -rn "^\s*CATEGORY" nodes/`，勿凭记忆）：
+`nodes/qianhui_latent_yolo/node.py:239 → 千绘/修复`；
+`nodes/qianhui_watermark/nodes.py:13` 与 `:92 → 千绘/水印`。
+其余 8 个分类名与本行原有文本逐一相同，不要顺手改写它们。
+
 - [ ] **步骤 2：更新目录结构树与依赖说明**
 
 「目录结构」补：
@@ -1813,7 +1825,15 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ├── requirements.txt     # Python 依赖（reedsolo）
 ```
 
-「注意事项」补一条：
+> ⚠️ **照抄这三行会画出两处「双尾」树。** 现 README 的树里，末位子项用的是 `└──`：
+> `nodes/` 下的末位是 `└── lora_grid_node.py`，顶层的末位是 `└── combat_data/`。
+> 你要在这两处**后面**追加新条目，所以必须先把这两个 `└──` 改成 `├──`，
+> 否则同一个父节点下会出现两个 `└──`。
+> 另外 `#` 注释的对齐列会因新名字更长而变，建议一并把 `nodes/` 子树的注释列重新对齐
+> （`qianhui_latent_yolo/` 比 `lora_grid_node.py` 长 3 个字符）。
+> 这两件事简报没写，但「目录结构与代码一致」是完成标准，画歪了不算完成。
+
+「注意事项」补**两条**（下面这个块里是两条，不是一条）：
 
 ```markdown
 - `Latent 智能修复` 与 `水印` 模块需要额外依赖：`pip install reedsolo`（隐形水印的 Reed-Solomon 纠错）。未安装时可见水印仍可用，隐形水印会报出带安装指引的错误。
