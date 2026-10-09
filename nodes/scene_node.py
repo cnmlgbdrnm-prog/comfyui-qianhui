@@ -3,12 +3,12 @@
 
 模块职责：内置场景/季节/天气/时间/光效/画质风格/衣物质感数据库，
 按用户选择提取英文 Tag 并智能拼接环境提示词，全手动选择无随机逻辑。
-anima 适配：05_画面画质风格 内置完整质量体系 —— 官方完整顶配(人工评分
+anima 适配：画面画质风格 内置完整质量体系 —— 官方完整顶配(人工评分
 masterpiece/best quality + 美学评分三叠 + meta highres/absurdres/newest)与
 美学评分 5 档(score_9+8+7 / score_9 / score_8 / score_7 / score_6)；
-09_氛围句 提供单句环境氛围自然语言(Hybrid 格式第二层, 与标签逗号混排)，
+氛围句 提供单句环境氛围自然语言(Hybrid 格式第二层, 与标签逗号混排)，
 权重滑杆设 1.0 即纯标签输出, 符合官方"硬标签层+质量词+氛围句"规范, 无需模型类型区分。
-Krea 2 适配：05_画面画质风格 内置 Krea 2 画风词库 —— Krea 2 (Qwen3VL 编码器)
+Krea 2 适配：画面画质风格 内置 Krea 2 画风词库 —— Krea 2 (Qwen3VL 编码器)
 以自然语言风格短语为主, 含官方 Moodboard 画风(电影微距/巨构/粗粝写实、霓虹黑色电影、
 霓虹 VHS、霓虹剪影)与官方风格 LoRA 触发词(如 neon noir fog style / emerald haze style),
 以及 Krea2 Me 正向质量词, 供 Krea 2 系列模型用户选择。
@@ -373,7 +373,7 @@ class QianhuiSceneMaster:
 
         # 3. 权重逻辑
         # 权重滑杆全局加权 (权重1.0即纯标签); anima 用户权重设 1.0
-        # 并在 05_画面画质风格 选 score_7/score_9, 即纯标签+官方评分词
+        # 并在 画面画质风格 选 score_7/score_9, 即纯标签+官方评分词
         if not content:
             return ("",)
 

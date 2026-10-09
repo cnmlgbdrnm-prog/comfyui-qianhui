@@ -108,10 +108,13 @@ class TestNoNumericPrefix(unittest.TestCase):
             self.assertEqual(bad, [], f"{key} 仍有带前缀的键: {bad}")
 
     def test_source_has_no_old_key_leftovers(self):
-        """源码中不得残留任何旧键名字符串（防漏改 kwargs 引用）"""
+        """源码中不得残留任何旧键名——含单引号、字符串拼接、注释与 docstring"""
+        # 注意：这里必须用裸 `k in src`，不能写成 f'"{k}"' in src。
+        # 带引号的写法只覆盖双引号字面量，漏掉单引号、拼接和注释里的旧名，
+        # 而本用例的承诺是「源码中不残留」——覆盖面必须与承诺一致。
         for module_file, old in OLD_KEYS.items():
             src = io.open(os.path.join(NODES_DIR, module_file), encoding="utf-8").read()
-            left = sorted(k for k in old if f'"{k}"' in src)
+            left = sorted(k for k in old if k in src)
             self.assertEqual(left, [], f"{module_file} 残留旧键名: {left}")
 
     def test_key_count_unchanged(self):
