@@ -319,39 +319,142 @@ if __name__ == "__main__":
 （"payload 超容量应抛 ValueError"）写成 `with self.assertRaises(ValueError):`——
 这是**强化**，要在文件注释里写明。除此之外不得偏离。
 
-**搬完的自检（数字必须完全对上，对不上就是翻译时改了东西）**：
+**搬完的自检（逐值对拍，必须全绿）**：
+
+> ⚠️ **不要只数断言条数。** 早期版本这里用的是「断言条数 移植 ≥ 源」的计数门，
+> 它**拦不住本任务真正的风险**：计数看不到改过的常数、种子、形状、比较运算符、
+> 提示消息，也看不到「换成另一个同样条数的弱断言」。
+> 实测过：把这份测试换成缩水版（`test_adaptive_q` 只留 5 个点、`test_rs_roundtrip`
+> 换输入、`test_visible_text_shape` 把「有改动」断言换成 dtype 检查），
+> **计数门照样全绿**，而下面这个逐值门会把 16 个用例里的 15 个全部点出来。
+
+下面的脚本把两侧规范化后逐用例比对 AST：
+源侧删 `print(...)`、把 `from watermark_nodes import X` 重映射到包内模块、
+摘掉函数内重复的 `import numpy as np`（移植侧提到了模块级）；
+移植侧把 `self.assertEqual(a, b, m)` 还原成 `assert a == b, m`，其余 `assertX` 同理；
+两侧都去掉测试方法的 `self` 参数。规范化后两侧 AST 必须**逐用例完全相等**。
 
 ```bash
 python -X utf8 - <<'PYEOF'
-import ast, io, re
-def cases(p):
-    t = ast.parse(io.open(p, encoding="utf-8").read())
+"""源测试 vs 移植测试的**逐值对拍**（不是计数）。
+
+把两侧规范化成同一种写法后逐用例比对 AST：
+  源侧  —— 删 print(...)、把 `from watermark_nodes import X` 重映射到包内模块
+  移植侧 —— `self.assertEqual(a,b,m)` -> `assert a == b, m`，其余 assertX 同理
+  两侧  —— 去掉测试函数的第一个参数（self）
+规范化后 ast.dump 必须逐用例完全相等。ALLOW 登记有意偏离的用例。
+
+为什么不能只数断言：计数看不到改过的常数/种子/形状/运算符/消息，
+也看不到「换成另一个同样条数的弱断言」。已实测：把 17 个用例换成缩水版，
+计数门照样全绿。
+"""
+import ast, io, sys
+
+SRC = r"E:\comfuyui 插件\水印\test_watermark.py"
+DST = "tests/test_watermark.py"
+PKG = "qh_watermark"
+MOD = {
+    "_dct8": "dct", "_idct8": "dct", "_get_block_q": "dct",
+    "_encode_payload": "payload", "_decode_payload": "payload",
+    "_embed_invisible": "invisible", "_extract_invisible": "invisible",
+    "_apply_visible_watermark": "visible",
+    "WatermarkAdd": "nodes", "WatermarkExtract": "nodes",
+}
+RENAME = {"WatermarkAdd": "QianhuiWatermarkAdd", "WatermarkExtract": "QianhuiWatermarkExtract"}
+CMP = {"assertEqual": ast.Eq, "assertNotEqual": ast.NotEq, "assertGreater": ast.Gt,
+       "assertGreaterEqual": ast.GtE, "assertLess": ast.Lt, "assertLessEqual": ast.LtE}
+BOOL = {"assertTrue": False, "assertFalse": True}
+ALLOW = {"test_invisible_capacity_error"}
+
+
+def is_print(node):
+    return (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name) and node.value.func.id == "print")
+
+
+class Src(ast.NodeTransformer):
+    def visit_Expr(self, node):
+        if is_print(node):
+            return None
+        return self.generic_visit(node)
+
+    def visit_Name(self, node):
+        if node.id in RENAME:
+            node.id = RENAME[node.id]
+        return node
+
+    def visit_Import(self, node):
+        # 源测试在多个用例内重复写 `import numpy as np`；移植侧的样板把它
+        # 提到了模块级（一次）。对拍时把源侧的函数内 numpy 导入去掉，
+        # 否则每个用例都会差这一条。torch 的内联导入两侧都有，不动。
+        # 源里写成 `import torch, numpy as np` 的复合导入也要处理：
+        # 只摘掉 numpy 那一项，torch 留下。
+        node.names = [a for a in node.names if a.name != "numpy"]
+        return node if node.names else None
+
+    def visit_ImportFrom(self, node):
+        if node.module == "watermark_nodes":
+            node.names = [ast.alias(name=RENAME.get(a.name, a.name), asname=a.asname)
+                          for a in node.names]
+            node.module = PKG + "." + MOD.get(node.names[0].name, "nodes")
+        return node
+
+
+class Dst(ast.NodeTransformer):
+    def visit_Expr(self, node):
+        if is_print(node):
+            return None
+        c = node.value
+        if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) \
+                and isinstance(c.func.value, ast.Name) and c.func.value.id == "self":
+            a, name = c.args, c.func.attr
+            msg = None
+            if name in CMP:
+                test = ast.Compare(left=a[0], ops=[CMP[name]()], comparators=[a[1]])
+                msg = a[2] if len(a) > 2 else None
+            elif name in BOOL:
+                test = ast.UnaryOp(op=ast.Not(), operand=a[0]) if BOOL[name] else a[0]
+                msg = a[1] if len(a) > 1 else None
+            else:
+                return self.generic_visit(node)
+            return ast.copy_location(ast.Assert(test=test, msg=msg), node)
+        return self.generic_visit(node)
+
+
+def norm(path, tr):
+    t = tr().visit(ast.parse(io.open(path, encoding="utf-8").read()))
+    ast.fix_missing_locations(t)
     out = {}
     for n in ast.walk(t):
         if isinstance(n, ast.FunctionDef) and n.name.startswith("test_"):
-            out[n.name] = sum(
-                1 for x in ast.walk(n)
-                if isinstance(x, ast.Assert)
-                or (isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute)
-                    and x.func.attr.startswith("assert"))
-            )
+            n.args.args = []          # 去掉 self
+            n.decorator_list = []
+            out[n.name] = ast.dump(n)
     return out
-s = cases(r"E:\comfuyui 插件\水印\test_watermark.py")
-p = cases("tests/test_watermark.py")
-print("用例数  源=%d 移植=%d" % (len(s), len(p)))
-print("断言数  源=%d 移植=%d" % (sum(s.values()), sum(p.values())))
-for k in s:
-    a, b = s[k], p.get(k)
-    mark = "" if (isinstance(b, int) and b >= a) else "   <== 变弱了！"
-    print("  %-38s 源=%-3d 移植=%-3s%s" % (k, a, b, mark))
-print("缺失:", [k for k in s if k not in p])
-print("多出:", [k for k in p if k not in s])
+
+
+s, d = norm(SRC, Src), norm(DST, Dst)
+bad = 0
+for name in sorted(s):
+    if name in ALLOW:
+        print("· %-38s 登记在案的有意偏离，跳过" % name); continue
+    if name not in d:
+        print("✗ %-38s 移植侧缺失" % name); bad += 1; continue
+    if s[name] != d[name]:
+        print("✗ %-38s 规范化后仍不一致" % name); bad += 1
+extra = sorted(set(d) - set(s))
+if extra:
+    print("✗ 移植侧多出:", extra); bad += 1
+print()
+print("逐用例逐值对拍: %s" % ("全部一致 ✓" if bad == 0 else "%d 处不一致" % bad))
+print("用例数 源=%d 移植=%d" % (len(s), len(d)))
+sys.exit(1 if bad else 0)
 PYEOF
 ```
 
-Expected：用例数 17/17、断言数 **源=33 移植=34**（多出的 1 个正是下面那条预期强化的
-`test_invisible_capacity_error` 源=0→移植=1，其余 16 个用例必须逐行相等）；
-逐行无 `变弱了！`；`缺失: []`、`多出: []`。**移植数低于源数就是漏搬了断言**，逐个补回。
+Expected：`逐用例逐值对拍: 全部一致 ✓`，`用例数 源=17 移植=17`，退出码 0。
+**任一用例被点出来就是搬错了**——去源文件对照那一个用例，不要改断言、不要把它加进 `ALLOW`
+（`ALLOW` 只为 `test_invisible_capacity_error` 那一条登记在案的强化而存在）。
 
 - [ ] **步骤 3：跑测试，确认失败**
 
@@ -702,7 +805,9 @@ Expected: `OK`，**11 个用例**全过（不是 12——这里以前写错了�
 |---|---|---|
 | `model_managers.py` | 534-723（`YOLOModelManager` + `SAMModelManager`） | `glob`/`os`/`folder_paths` |
 | `model_cache.py` | 724-1159（`YOLOModelCache`） | `gc`/`os`/`torch`/`comfy.model_management` |
-| `controlnet.py` | 1160-1234（`ControlNetHelper`） | `os`/`hp`/`torch`/`torch.nn.functional as F`/`numpy as np`/`comfy.controlnet`/`folder_paths` |
+| `controlnet.py` | 1160-1234（`ControlNetHelper`） | `os`/`torch`/`torch.nn.functional as F`/`numpy as np`/`comfy.controlnet`/`folder_paths` |
+
+> 早期版本这张表里 `controlnet.py` 还列了 `hp`。**已核实是错的**：`hp` 在 5633 行源文件里出现 0 次，也不存在同名模块，`import hp` 会在插件加载时 `ModuleNotFoundError`。不要再加回去。
 | `base_node.py` | 1266-1283（仅 `upscale_latent`） | `torch`/`torch.nn.functional as F`/`from .algorithms import LatentAlgorithms` |
 
 **`base_node.py` 只搬 `upscale_latent`**。源 1242-1265 的 `INPUT_TYPES` 与 1284-1317 的 `process` 从未被调用（该基类未注册），不再移植。
