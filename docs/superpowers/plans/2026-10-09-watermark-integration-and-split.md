@@ -1112,14 +1112,39 @@ for i, s in enumerate(order):
 for k, v in cross.items():
     print(f"\n{k}  ({len(v)} 个)")
     print("  " + ", ".join(v))
-print("\n合计跨阶段变量:", sum(len(v) for v in cross.values()))
+print("\n逐对相加（有重复计数）:", sum(len(v) for v in cross.values()))
+
+# 真正要放进 YoloRunContext 的是**并集**，不是逐对相加的和 ——
+#   同一个变量会出现在多个阶段对里（比如 ksampler 在 3 对里都出现），
+#   相加会把它数好几遍，照着建 dataclass 会造出一堆重复字段。
+union = set()
+for v in cross.values():
+    union |= set(v)
+print("去重后的并集（= YoloRunContext 字段数的上界）:", len(union))
+print("")
+print("按首次定义阶段分组：")
+for nm, _, _ in PHASES:
+    grp = sorted(v for v in union if v in defs[nm])
+    if grp:
+        print("  %-10s %2d 个: %s" % (nm, len(grp), ", ".join(grp)))
 PY
 ```
 > ⚠️ **不要把这六个片段各自 `ast.parse` 一遍**。它们是同一个函数体内的**缩进片段**，不是独立模块：`prepare_b`(4240-4385) 以普通赋值语句开头、`detect`(4386-4862) 以 `try:` 开头而其 `except` 在片段之外，逐个解析必然 `IndentationError`（`.lstrip()` 和 `textwrap.dedent` 都救不了）。正确做法是**整个文件解析一次，`ast.walk(proc)` 拿到真实的 `ast.Name` 节点，再按 `lineno` 归到阶段**——脚本已按此写好。
 >
 > 另：阶段的划分只影响「哪些变量要进 `YoloRunContext`」，不影响搬运的合法性。`detect`/`repair`/`global`/`report` 四段**都在 `for i in range(batch_size)` 循环体内**，这正是 `ctx` 必须带 `i`、`out_latents`、`samples` 等字段的原因。
 
-Expected: 打印每对相邻/跨阶段共享的变量名清单。**这份清单就是 `YoloRunContext` 需要承载的字段集**——以脚本输出为准，不要凭记忆增删。
+Expected：逐对清单 + `逐对相加（有重复计数）: 220` + **`去重后的并集（= YoloRunContext 字段数的上界）: 147`** + 按首次定义阶段分组的变量表。
+
+> ⚠️ **`YoloRunContext` 的字段集是那个「并集」147，不是 220。** 同一个变量会同时出现在好几个阶段对里
+> （`ksampler` 在 3 对里都有，`detection_mask`、`out_latents` 同理），逐对相加会把它数好几遍；
+> 照着 220 去建 dataclass 会造出一堆重复字段。
+>
+> 另外：`YoloConfig` 的字段（步骤 3 生成的 99 个）**不是**这个集合。`YoloConfig` 装的是从 `kwargs`
+> 解析出来的**配置项**；`YoloRunContext` 装的是阶段之间传递的**运行时状态**。两者有交集但不是一回事，
+> 别互相套用。
+>
+> 147 只是**上界**——分组表是给你判断「某个变量该由哪个阶段负责产出」用的。实际写 `YoloRunContext` 时
+> 以脚本输出的分组表为准逐项落位，不要凭记忆增删。
 
 - [ ] **步骤 2：写 `context.py`**
 
