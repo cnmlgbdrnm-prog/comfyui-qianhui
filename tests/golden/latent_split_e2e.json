@@ -1,0 +1,5857 @@
+{
+  "meta": {
+    "device": "cpu",
+    "generated_from": "QianhuiLatentYOLO.process（未改动的单体）",
+    "git_head": "05b153f2961e8df84292d87c45e6e1b26403e80e",
+    "num_threads": 1,
+    "scenario_count": 24,
+    "torch": "2.9.1+cu126"
+  },
+  "scenarios": [
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "base",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            19.5,
+            22.5,
+            78.0,
+            90.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 36864,
+            "sha256": "ce70605912e6fb1f87d19c014aec7f583b6df35e92f20a09cb11ca83c0e5a222",
+            "shape": [
+              192,
+              192
+            ],
+            "sum": 2538.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            96.0,
+            56.25,
+            131.25,
+            116.25
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 36864,
+            "sha256": "f2aa9e5ce1f91b4c64b989a01da009a6f68b7d6bf0b2cf21fea4adf4447a86cd",
+            "shape": [
+              192,
+              192
+            ],
+            "sum": 1392.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            48.75,
+            131.25,
+            88.125,
+            176.25
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            19.5,
+            22.5,
+            78.0,
+            90.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 36864,
+            "sha256": "ce70605912e6fb1f87d19c014aec7f583b6df35e92f20a09cb11ca83c0e5a222",
+            "shape": [
+              192,
+              192
+            ],
+            "sum": 2538.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            96.0,
+            56.25,
+            131.25,
+            116.25
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 36864,
+            "sha256": "f2aa9e5ce1f91b4c64b989a01da009a6f68b7d6bf0b2cf21fea4adf4447a86cd",
+            "shape": [
+              192,
+              192
+            ],
+            "sum": 1392.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            48.75,
+            131.25,
+            88.125,
+            176.25
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            19.5,
+            22.5,
+            78.0,
+            90.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 36864,
+            "sha256": "ce70605912e6fb1f87d19c014aec7f583b6df35e92f20a09cb11ca83c0e5a222",
+            "shape": [
+              192,
+              192
+            ],
+            "sum": 2538.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            96.0,
+            56.25,
+            131.25,
+            116.25
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 36864,
+            "sha256": "f2aa9e5ce1f91b4c64b989a01da009a6f68b7d6bf0b2cf21fea4adf4447a86cd",
+            "shape": [
+              192,
+              192
+            ],
+            "sum": 1392.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            48.75,
+            131.25,
+            88.125,
+            176.25
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.5x | 输出latent: (3, 4, 24, 24)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 17.111227,
+        "min": -13.942602,
+        "numel": 6912,
+        "sha256": "6a36296bc564b36e534508dddb9c9e5e45bd33f0cee7bd29f50e7d9f7fbc6a0e",
+        "shape": [
+          3,
+          4,
+          24,
+          24
+        ],
+        "sum": -115.62529
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 110592,
+        "sha256": "cdc9b277d1205f27cc009c1acd80b5efea2ce630404eb67bd4d54a4a9ca6ba96",
+        "shape": [
+          3,
+          192,
+          192
+        ],
+        "sum": 102706.023438
+      },
+      "name": "scale1.5",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 331776,
+        "sha256": "9f56cef20ea15616270ce5057c152380568185aba42e5b2a0dcaebf819a6031b",
+        "shape": [
+          3,
+          192,
+          192,
+          3
+        ],
+        "sum": 65378.070312
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "work_mode_保持",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 修复后全图降噪\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.463216,
+        "min": -15.408452,
+        "numel": 3072,
+        "sha256": "2b3cc7c3330273c8f74703817544491e4fd2e494f27a74c7fabfb17c1d942683",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -53.294884
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "work_mode_全图降噪",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -12.244224,
+        "numel": 3072,
+        "sha256": "ba48362e1a77923b1f1209098e8b44c6df5a8259cdb310e13146f26b9fc8b454",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -126.125381
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "video",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "crop_on",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: OFF\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 7.938023,
+        "min": -8.863647,
+        "numel": 3072,
+        "sha256": "198ca5a09a0b8adbd0a84f84a17d220272bded4ef9e3a1aeaa795d07d0b7e2e6",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -145.659225
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "crop_off",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "blend_智能柔和",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: Poisson融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 4.178581,
+        "min": -4.543482,
+        "numel": 3072,
+        "sha256": "66361a8555f03d1325dc0c0ce90bf63edfd4d90b41d8927da9a2bb00ddba2f2d",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -95.448303
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "blend_Poisson",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: MPB增强融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 3.089087,
+        "min": -2.653019,
+        "numel": 3072,
+        "sha256": "a045bc66d8281c8e3f600c49414cddb946e7f47f7276c3863197b68984a9a26d",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -88.11441
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "blend_MPB增强",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 简单混合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 4.228383,
+        "min": -4.459632,
+        "numel": 3072,
+        "sha256": "79a91fb8fa8a9a6a32427677a218926325acc8118e10e6044e86bc03e8ce3917",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -82.674454
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "blend_简单混合",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "sam_score": 0.5,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "2d3f48156c18af30fdf32ccadc2139f907f6f3ef53ded6fbd83a2fa8b1476ca7",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 1152.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "sam_score": 0.6,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "6ed01df940842294594079ec628a16c6e15e73bc3f9028186313cf19a071f6f0",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "sam_score": 0.7,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "fed528c33d13072be2ea0dddb8f1e334aa02670db72a94af46bc18096d840b77",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 504.0
+          }
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "sam_score": 0.5,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "2d3f48156c18af30fdf32ccadc2139f907f6f3ef53ded6fbd83a2fa8b1476ca7",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 1152.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "sam_score": 0.6,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "6ed01df940842294594079ec628a16c6e15e73bc3f9028186313cf19a071f6f0",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "sam_score": 0.7,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "fed528c33d13072be2ea0dddb8f1e334aa02670db72a94af46bc18096d840b77",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 504.0
+          }
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "sam_score": 0.5,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "2d3f48156c18af30fdf32ccadc2139f907f6f3ef53ded6fbd83a2fa8b1476ca7",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 1152.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "sam_score": 0.6,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "6ed01df940842294594079ec628a16c6e15e73bc3f9028186313cf19a071f6f0",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "sam_score": 0.7,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "fed528c33d13072be2ea0dddb8f1e334aa02670db72a94af46bc18096d840b77",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 504.0
+          }
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 12.145398,
+        "min": -16.395651,
+        "numel": 3072,
+        "sha256": "19dde586c2236c98678b066ff165c86949deffccc12106db5a2d9f0afd330133",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -95.905884
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 49152,
+        "sha256": "1165ec6c033d05b543dab1ef15d82f9b3e68176bfb228c1b3e804244aef692cb",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 14423.999023
+      },
+      "name": "sam_on",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "sam_off",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 0",
+      "latent": {
+        "dtype": "float32",
+        "max": 4.428695,
+        "min": -4.959944,
+        "numel": 3072,
+        "sha256": "0601f0311c9dd6932ea34b3e1c115b5be47a09d23104b646b0d4a5db8da2561b",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -108.578644
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 0.0,
+        "min": 0.0,
+        "numel": 49152,
+        "sha256": "3381de4ca9f3a477f25989dfc8b744e7916046b7aa369f61a9a2f7dc0963ec9e",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 0.0
+      },
+      "name": "no_detect_保持原样",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "52086d661d645e12260a3e8e388ed870b97dbb0cd222f81c329a4e60c76e16ba",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 33528.777344
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 0",
+      "latent": {
+        "dtype": "float32",
+        "max": 6.755144,
+        "min": -7.556258,
+        "numel": 3072,
+        "sha256": "98a4f378afe6846a678e8b38868c4cf2708c4fde4d06c71cec59d3eebdddcd2f",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -160.459885
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 0.0,
+        "min": 0.0,
+        "numel": 49152,
+        "sha256": "3381de4ca9f3a477f25989dfc8b744e7916046b7aa369f61a9a2f7dc0963ec9e",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 0.0
+      },
+      "name": "no_detect_全图重绘",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "52086d661d645e12260a3e8e388ed870b97dbb0cd222f81c329a4e60c76e16ba",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 33528.777344
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3\n\n[性能统计] 总耗时: @秒 | 平均每帧: @秒",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "profiling",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            20.75,
+            24.25,
+            44.25,
+            50.75
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "1ef9fc868c1ae191f99981d36f46e4504169a9ef385a361a5b3229d2ea154a5a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2632.893555
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            67.875,
+            45.5,
+            83.625,
+            69.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "14c1005259566ef9248e3ffb40866616aa3227bbeb173909b5aab507dae1ffb7",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2616.140625
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            37.0,
+            93.0,
+            54.125,
+            112.0
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "5bbecae97612987526c985a02ec15f895be0019dce8a4d0d98f0a57709eb61e0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2597.8125
+          }
+        },
+        {
+          "bbox": [
+            20.75,
+            24.25,
+            44.25,
+            50.75
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "1ef9fc868c1ae191f99981d36f46e4504169a9ef385a361a5b3229d2ea154a5a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2632.893555
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            67.875,
+            45.5,
+            83.625,
+            69.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "14c1005259566ef9248e3ffb40866616aa3227bbeb173909b5aab507dae1ffb7",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2616.140625
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            37.0,
+            93.0,
+            54.125,
+            112.0
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "5bbecae97612987526c985a02ec15f895be0019dce8a4d0d98f0a57709eb61e0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2597.8125
+          }
+        },
+        {
+          "bbox": [
+            20.75,
+            24.25,
+            44.25,
+            50.75
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "1ef9fc868c1ae191f99981d36f46e4504169a9ef385a361a5b3229d2ea154a5a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2632.893555
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            67.875,
+            45.5,
+            83.625,
+            69.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "14c1005259566ef9248e3ffb40866616aa3227bbeb173909b5aab507dae1ffb7",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2616.140625
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            37.0,
+            93.0,
+            54.125,
+            112.0
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "5bbecae97612987526c985a02ec15f895be0019dce8a4d0d98f0a57709eb61e0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 2597.8125
+          }
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 49.577522,
+        "min": -44.427666,
+        "numel": 3072,
+        "sha256": "b83f53040f5eea001a137d73a7a8b271391583bb27c0a3eef345edcf09834376",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -47.25692
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "refine_det",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "066cef91828e96f7184535c167fad797469273d41d7266c5d36f64b4ba94d592",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 33854.199219
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 6.48133,
+        "min": -8.010929,
+        "numel": 3072,
+        "sha256": "7ee3d5dee891d800f243feaa90bf17b39626869541e0d5bbacda58e50da6b222",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -75.211601
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 0.965966,
+        "min": 0.65,
+        "numel": 49152,
+        "sha256": "d4d3bd8ff9b44d295cb40b8c180e0ddd0bce8a5c595e8ac27ba46fca285ecbbb",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 36344.859375
+      },
+      "name": "ema_on",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.260024,
+        "min": -15.558014,
+        "numel": 3072,
+        "sha256": "d84f108d38a531252d59c54019de724510f10485d5f2d00d6937785068a90552",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.810242
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "hand_skeleton_cn",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 12927.473633,
+        "min": 1301.88269,
+        "numel": 3072,
+        "sha256": "7bf5e030d81676ef5bcaa0895945381344e51947ae44543abc52b0f02abef81d",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": 13451155.0
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "cn_on",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "7e4178cd48b7815821d8719cb7d47c34506b6f43cfa98c6d42b0492ed9dd12bf",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 142872.0
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 简单混合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: OFF\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 5.977081,
+        "min": -6.645412,
+        "numel": 3072,
+        "sha256": "790d6be83fd8fd233d79da6a0c09de40424de179c76405f145dd601d3c32ee52",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -115.033325
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "preset_快速模式",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            20.75,
+            24.25,
+            44.25,
+            50.75
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "sam_score": 0.5,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "18bc23f6d5f4882687dd57827ef5c83adfb3233c9393f23a7dc92276913aaa20",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 396.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            67.875,
+            45.5,
+            83.625,
+            69.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "sam_score": 0.6,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "d688cb753a678a827968293b15a83168d964818fc75041f7368fbb4a0ef04bce",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 260.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            37.0,
+            93.0,
+            54.125,
+            112.0
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "sam_score": 0.7,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "5081c5ec9eeaa682097fa219f49d390b48bf17081b932bfb867003fa6a0deb35",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 224.0
+          }
+        },
+        {
+          "bbox": [
+            20.75,
+            24.25,
+            44.25,
+            50.75
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "sam_score": 0.5,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "18bc23f6d5f4882687dd57827ef5c83adfb3233c9393f23a7dc92276913aaa20",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 396.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            67.875,
+            45.5,
+            83.625,
+            69.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "sam_score": 0.6,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "d688cb753a678a827968293b15a83168d964818fc75041f7368fbb4a0ef04bce",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 260.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            37.0,
+            93.0,
+            54.125,
+            112.0
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "sam_score": 0.7,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "5081c5ec9eeaa682097fa219f49d390b48bf17081b932bfb867003fa6a0deb35",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 224.0
+          }
+        },
+        {
+          "bbox": [
+            20.75,
+            24.25,
+            44.25,
+            50.75
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "sam_score": 0.5,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "18bc23f6d5f4882687dd57827ef5c83adfb3233c9393f23a7dc92276913aaa20",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 396.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            67.875,
+            45.5,
+            83.625,
+            69.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "sam_score": 0.6,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "d688cb753a678a827968293b15a83168d964818fc75041f7368fbb4a0ef04bce",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 260.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            37.0,
+            93.0,
+            54.125,
+            112.0
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "sam_score": 0.7,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 1048576,
+            "sha256": "5081c5ec9eeaa682097fa219f49d390b48bf17081b932bfb867003fa6a0deb35",
+            "shape": [
+              1024,
+              1024
+            ],
+            "sum": 224.0
+          }
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 5.563566,
+        "min": -6.37395,
+        "numel": 3072,
+        "sha256": "8a843df20d9c3d9b20bba512e0f6e49bb16579423a8d81baf63e5fa9e5a39259",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -82.190659
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 0.966085,
+        "min": 0.0,
+        "numel": 49152,
+        "sha256": "b20b98ae933cece1dbf0906efd88d44db1fd1d2ae57d40a1ba1b3911705aabf2",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 10257.208984
+      },
+      "name": "preset_质量模式",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "066cef91828e96f7184535c167fad797469273d41d7266c5d36f64b4ba94d592",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 33854.199219
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.90061,
+        "min": -16.088839,
+        "numel": 3072,
+        "sha256": "42d7aa35f6ae5b2bc1caf98e46983a6f24c511907517e879b7a8bbf35a8b735f",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -70.219902
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "rules_预设",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    },
+    {
+      "batch_size": 3,
+      "detections": [
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        },
+        {
+          "bbox": [
+            13.0,
+            15.0,
+            52.0,
+            60.0
+          ],
+          "class_id": 0,
+          "class_name": "face",
+          "confidence": 0.9,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "29c9e87ac5629a14bb5aa65a1f9aa4a93ed2cb9c91ff14a2cc98478235e311c0",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 1116.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            64.0,
+            37.5,
+            87.5,
+            77.5
+          ],
+          "class_id": 1,
+          "class_name": "hand",
+          "confidence": 0.8,
+          "merged_count": 1,
+          "seg_mask": {
+            "dtype": "float32",
+            "max": 1.0,
+            "min": 0.0,
+            "numel": 16384,
+            "sha256": "a9b574fda0a9a0949ee5f8fe6bcacd871dd5ef057ce52f6c4138358f6aaf779a",
+            "shape": [
+              128,
+              128
+            ],
+            "sum": 608.0
+          },
+          "seg_mask_shape": [
+            1024,
+            1024
+          ]
+        },
+        {
+          "bbox": [
+            32.5,
+            87.5,
+            58.75,
+            117.5
+          ],
+          "class_id": 2,
+          "class_name": "foot",
+          "confidence": 0.7,
+          "merged_count": 1,
+          "seg_mask": null
+        }
+      ],
+      "info": "处理完成: 3 张\n工作模式: 仅修复(保持输入Latent)\n融合模式: 智能柔和融合 | Latent感知插值: ON\n放大: 1.0x | 输出latent: (3, 4, 16, 16)\nYOLO: ON | 裁剪精修: ON\n检测总数(使用后): 9\n  - face: 3\n  - hand: 3\n  - foot: 3",
+      "latent": {
+        "dtype": "float32",
+        "max": 11.313792,
+        "min": -15.711129,
+        "numel": 3072,
+        "sha256": "c95175db94aef1ef385e4a3c327aa0ff4f70f3f7949f7efa72182c759b1cca3e",
+        "shape": [
+          3,
+          4,
+          16,
+          16
+        ],
+        "sum": -69.996513
+      },
+      "mask": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 1.0,
+        "numel": 49152,
+        "sha256": "b12e0b447a6a575d6fe7e9c55bcdb59922175514b03e3e43d16463618b8e255d",
+        "shape": [
+          3,
+          128,
+          128
+        ],
+        "sum": 49151.996094
+      },
+      "name": "rules_自定义",
+      "preview": {
+        "dtype": "float32",
+        "max": 1.0,
+        "min": 0.0,
+        "numel": 147456,
+        "sha256": "5c80d7f2d18f054eb387e553c5a8586037b7e9051c441c93489e2377f1823455",
+        "shape": [
+          3,
+          128,
+          128,
+          3
+        ],
+        "sum": 34040.488281
+      },
+      "seed": 1234
+    }
+  ]
+}
