@@ -1685,6 +1685,32 @@ def _assign_targets_in_the_frame_loop(fname, cls_name, loop_iter_substr):
 class TestSplitNodeWidgets(unittest.TestCase):
     """4 个节点的控件表：字段覆盖、共享控件同源、整体不漏、契约一致。"""
 
+    def test_unowned_cfg_read_exemptions_are_not_stale(self):
+        """★ 豁免表里**没被用到**的条目也要红（与对拍脚本 `EXPECTED_STMT_LOSSES` 的绊线对称）。
+
+        `UNOWNED_CFG_READS` 只被 `_node_stage_fields()` **减**用 —— 于是将来真把
+        M-2 那条静默死分支 / M-3 那句日志打印删掉（那才是「修好」），这两条豁免会
+        **静静留着、没有任何信号**，表与代码悄悄脱节；而一条陈旧豁免会在将来
+        掩护一条**新的**同字段越界。对拍脚本 `verify_split_behaviour_preservation.py:746`
+        早就有这条反向绊线，守卫侧一直缺。
+
+        杀它的变异：删掉 `node_detect.py` 里打印 `ctx.cfg.color_strength` 的那行
+        （或删掉 `hand_skeleton_cn_model` 的派生）⇒ 本用例红。
+        """
+        used = set()
+        for node_key, field in UNOWNED_CFG_READS:
+            node_reads, _ = _cfg_access(_split_node_path(_split_node_file(node_key)))
+            if field in node_reads:
+                used.add((node_key, field))
+        stale = sorted(set(UNOWNED_CFG_READS) - used)
+        self.assertEqual(
+            stale, [],
+            "UNOWNED_CFG_READS 里有 %d 条**已经不再被读到**（陈旧豁免）：\n%s\n"
+            "  说明那处越界已被删掉/修好 —— 请把该条目从 UNOWNED_CFG_READS 里移除。\n"
+            "  留着它，将来同字段的**新**越界会被它静默掩护。"
+            % (len(stale), "\n".join("    %s · %s" % (nk, f) for nk, f in stale)),
+        )
+
     def test_each_node_field_set_is_covered_by_its_widgets(self):
         """★ 每节点「它读的 cfg 字段」必须全部在它的控件表里。
 
