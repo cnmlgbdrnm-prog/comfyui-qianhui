@@ -28,7 +28,22 @@ class GeometryMixin:
                     suppressed[j] = True
                     # 合并seg mask
                     if det_i.get("seg_mask") is not None and detections[j].get("seg_mask") is not None:
-                        det_i["seg_mask"] = np.maximum(det_i["seg_mask"], detections[j]["seg_mask"])
+                        # V6.11.4：形状不一致时先对齐，绝不硬崩。历史上翻转TTA 的
+                        # letterbox 遮罩与已规范化的原图遮罩混进同一轮 NMS，直接
+                        # ValueError: operands could not be broadcast (1280,1024)(768,640)，
+                        # 整个检测节点挂掉。修在源头（detection.py 翻转后重采样）之外，
+                        # 这里再兜一层，任何未来的形状不一致都退化成「不合并」而不是崩。
+                        a, b = det_i["seg_mask"], detections[j]["seg_mask"]
+                        if a.shape != b.shape:
+                            try:
+                                import cv2
+                                b = cv2.resize(np.asarray(b, dtype=np.float32),
+                                               (a.shape[1], a.shape[0]),
+                                               interpolation=cv2.INTER_LINEAR)
+                            except Exception:
+                                b = None
+                        if b is not None:
+                            det_i["seg_mask"] = np.maximum(a, b)
         
         return keep
 

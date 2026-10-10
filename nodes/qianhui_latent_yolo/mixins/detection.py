@@ -542,7 +542,21 @@ class DetectionMixin:
                     det["bbox"] = [w - bx2, by1, w - bx1, by2]
                     if det.get("seg_mask") is not None:
                         try:
-                            det["seg_mask"] = det["seg_mask"][:, ::-1].copy()
+                            seg = det["seg_mask"]
+                            if seg.ndim > 2:
+                                seg = seg.squeeze()
+                            seg = seg[:, ::-1].copy()
+                            # V6.11.4修复：翻转后必须重采样回原图尺寸。
+                            # 翻转TTA走的是 imgsz（letterbox）分辨率，而 tile / 全尺度
+                            # 两条路的 seg_mask 都已规范化到 (h, w)。不归一化的话，
+                            # NMS 合并 seg（geometry.py 的 np.maximum）会因形状不同而崩：
+                            #   ValueError: operands could not be broadcast (h,w) (lb_h,lb_w)
+                            # 实例：1024×1280 图 + person_yolov8m-seg + 多尺度 ⇒ (1280,1024) vs (768,640)
+                            if seg.shape[0] != h or seg.shape[1] != w:
+                                import cv2
+                                seg = cv2.resize(seg.astype(np.float32), (w, h),
+                                                 interpolation=cv2.INTER_LINEAR)
+                            det["seg_mask"] = seg
                         except Exception:
                             det["seg_mask"] = None
                 all_detections.extend(flip_dets)
