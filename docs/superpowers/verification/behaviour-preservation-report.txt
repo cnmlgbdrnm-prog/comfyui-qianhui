@@ -19,7 +19,7 @@
 ------------------------------------------------------------------------------
 源函数名去重 87 个；新包中**没有同名函数**的 = 0 个 
 
-配对成立 105 对 → 逐字节相同 97，不同 8
+配对成立 105 对 → 逐字节相同 95，不同 10
 
 不同的条目（逐个说明理由；理由必须成立，否则就是回归）：
   * get_sam_dir      源 @633    →  nodes\qianhui_latent_yolo\model_managers.py:116
@@ -34,8 +34,12 @@
       4 个 node_*.py 各自声明**本节点那一部分**控件（节点名册见 task-8-14-brief.md §一），T13 后单体那条已删，同名条目由源的 2 条变成 4 条。按名配对于是把源那条**注册节点**的 INPUT_TYPES 配到了某个**子集**上 —— 子集当然不等于全集，差异是拆分本身造成的，不是控件表被改。★ 但«控件表一个字节都没动»不能只靠这条登记：它由下面 §2b 用「源单体控件表 vs 4 节点并集」逐条比对单独护住，那一处**不可登记豁免**（源每一条声明都必须在某个节点里逐字出现）。
   * __init__         源 @1517   →  nodes\qianhui_latent_yolo\node_detect.py:306
       源那个**聚合类** QianhuiLatentYOLO.__init__（超长基类链 + 每个节点各 new 一个 YOLOModelCache）在 T13 后不复存在：4 个节点各自的 `__init__` 只做 `self.yolo_cache = get_shared_cache()`（T5 起的模块级单例；单例内部的构造参数与源逐字相同：max_cached_models=3, vram_threshold_mb=500）。按名配对于是把源那条配到了某个节点的 `__init__` 上 —— 差异的性质是「聚合类被拆成 4 个」。
+  * _detect_with_yolo 源 @1969   →  nodes\qianhui_latent_yolo\mixins\detection.py:351
+      ★ NMS 崩溃修复（2026-10-10）——**不是拆分引入的回归**：多尺度检测时，翻转TTA 分支的 `seg_mask` 停在 letterbox 分辨率，与已规范化到原图尺寸的遮罩混进同一轮 NMS，就 `ValueError: operands could not be broadcast together with shapes (1280,1024) (768,640)`，整个检测节点抛异常、整条链挂掉。现在翻转后按 (w,h) 重采样回原图尺寸。★ 源 `水印/nodes.py` 的同一处**也有这个缺陷**（拆分只是把它逐字搬了过来），所以这是**修 bug**、不是行为漂移；且只在「多尺度 + seg 模型 + 非方形图」三条同时成立时才走到，其余路径一条语句没动。
   * _refine_with_sam 源 @2347   →  nodes\qianhui_latent_yolo\mixins\sam.py:80
       同上（SAM 3）：新增 `sam_version == "sam3"` 的加载分支，并把它上面那条 `if` 改成 `elif`。SAM1/SAM2 两条路的语句一条没动；两个版本接口形状的差异全部关在新加的 `_SAM3BoxPredictor` 适配层里（该类在源里不存在，属新包侧未配对项，不参与本表）。
+  * _nms_detections_enhanced 源 @2947   →  nodes\qianhui_latent_yolo\mixins\geometry.py:5
+      同上（兜底）：NMS 合并 seg 前先比 shape，不一致就重采样对齐（环境没有 cv2 时退化成「不合并」），**绝不抛异常**。形状一致时（即所有正常路径）走的是原语句，逐位不变。回归测试见 `tests/test_latent_yolo_seg_nms_shape.py` —— 旧代码下同一套用例在 `geometry.py:31` 抛出与生产**完全相同**的 ValueError，是已实测过的杀对照。
   * process          源 @4131   →  nodes\qianhui_latent_yolo\node_detect.py:321
       源 1476 行的巨型 process() 被拆成 4 个 node_*.py 各自的 process + 7 个阶段函数（本脚本 §3 逐语句对拍）；T13 后单体那条 process 已删，新包只剩 4 个节点各自的process，同名条目由源的 2 条变 4 条，按名配对会配到不同实现上 —— 差异的性质不变（都是「巨型 process 被拆开」）
 
@@ -266,11 +270,11 @@
   源函数 105                              | 105   一致
   新包函数 112                            | 136   **不一致**
   源函数缺失 0                            | 按名缺失 0（按同名条目落空 0）
-  按名配对 112 → 逐字节相同 109，不同 3   | 配对 105 → 相同 97，不同 8
+  按名配对 112 → 逐字节相同 109，不同 3   | 配对 105 → 相同 95，不同 10
   process() 叶子语句 902 → 命中 901       | 叶子 674 → 命中 668
 
-复审所报「不同的 3 个」= INPUT_TYPES、__init__、_refine_with_sam、detect_sam_version、get_sam_dir、process
-本次实算的「不同」    = INPUT_TYPES、INPUT_TYPES、__init__、_refine_with_sam、detect_sam_version、get_sam_dir、process、process
+复审所报「不同的 3 个」= INPUT_TYPES、__init__、_detect_with_yolo、_nms_detections_enhanced、_refine_with_sam、detect_sam_version、get_sam_dir、process
+本次实算的「不同」    = INPUT_TYPES、INPUT_TYPES、__init__、_detect_with_yolo、_nms_detections_enhanced、_refine_with_sam、detect_sam_version、get_sam_dir、process、process
 
 ★ **T13 只动了「语句级」那一半的数字；函数级那一半一位没变。**
   （理由：T13 删掉的是 `node.py` / `report.py` / `prepare_run` —— 它们**承接**
@@ -278,7 +282,7 @@
 
                           T13 之前（上一版报告）   T13 之后（本次）
     新包函数数             136                      136
-    按名配对 / 相同 / 不同  105 / 97 / 8             105 / 97 / 8
+    按名配对 / 相同 / 不同  105 / 97 / 8             105 / 95 / 10
     语句承接者个数         20                       16
     承接口叶子合计         881                      793
     叶子命中 / 源叶子      672 / 674                668 / 674
@@ -290,7 +294,7 @@
   **基准没有被任何一次改动碰过**。
 
 ==============================================================================
-结论：函数级「不同」恰为已登记的 6 个（8 处配对）；语句级源侧丢失 6 处全部有登记，且登记表 6 条**条条生效**
+结论：函数级「不同」恰为已登记的 8 个（10 处配对）；语句级源侧丢失 6 处全部有登记，且登记表 6 条**条条生效**
       （T13 已落地，不再有「尚未生效」的预装条目）；
       控件表逐一核对通过（§2b：源单体 113 条声明全部在 4 节点并集里逐字出现，并集只多出跨节点 socket `检测数据`）；
       其余全部逐字相同。拆分**未发现未登记的行为变化**。

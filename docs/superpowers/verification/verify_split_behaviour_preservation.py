@@ -153,6 +153,20 @@ EXPECTED_DIFF_FUNCTIONS = {
                         "并把它上面那条 `if` 改成 `elif`。SAM1/SAM2 两条路的语句一条没动；"
                         "两个版本接口形状的差异全部关在新加的 `_SAM3BoxPredictor` 适配层里"
                         "（该类在源里不存在，属新包侧未配对项，不参与本表）。",
+    "_detect_with_yolo": "★ NMS 崩溃修复（2026-10-10）——**不是拆分引入的回归**：多尺度检测时，"
+                         "翻转TTA 分支的 `seg_mask` 停在 letterbox 分辨率，与已规范化到原图"
+                         "尺寸的遮罩混进同一轮 NMS，就 `ValueError: operands could not be "
+                         "broadcast together with shapes (1280,1024) (768,640)`，整个检测节点"
+                         "抛异常、整条链挂掉。现在翻转后按 (w,h) 重采样回原图尺寸。"
+                         "★ 源 `水印/nodes.py` 的同一处**也有这个缺陷**（拆分只是把它逐字搬了"
+                         "过来），所以这是**修 bug**、不是行为漂移；且只在「多尺度 + seg 模型 + "
+                         "非方形图」三条同时成立时才走到，其余路径一条语句没动。",
+    "_nms_detections_enhanced": "同上（兜底）：NMS 合并 seg 前先比 shape，不一致就重采样对齐"
+                                "（环境没有 cv2 时退化成「不合并」），**绝不抛异常**。形状一致时"
+                                "（即所有正常路径）走的是原语句，逐位不变。"
+                                "回归测试见 `tests/test_latent_yolo_seg_nms_shape.py` —— "
+                                "旧代码下同一套用例在 `geometry.py:31` 抛出与生产**完全相同**的 "
+                                "ValueError，是已实测过的杀对照。",
 }
 
 #: 已登记的、有正当理由的语句级差异（源侧多出的条目，按子串识别）。
@@ -540,13 +554,19 @@ def main():
          % (len(pairs), len(identical), len(differing)))
     emit("")
     emit("不同的条目（逐个说明理由；理由必须成立，否则就是回归）：")
+    unregistered_fn = []
     for s, n in differing:
         reason = EXPECTED_DIFF_FUNCTIONS.get(s.name)
         emit("  * %-16s 源 @%-5d  →  %s:%d"
              % (s.name, s.lineno, n.origin, n.lineno))
         emit("      %s" % (reason if reason else "*** 未登记 —— 需人工确认是否回归 ***"))
         if reason is None:
-            failure = "未登记的函数级差异：%s" % s.name
+            unregistered_fn.append(s.name)
+    if unregistered_fn:
+        # ★ 这里以前写作 `failure = "未登记的函数级差异：%s" % s.name`：多于一条未登记时，
+        #   只有**最后一条**会被报出来，前面几条被静默吞掉（绊线自己漏报）。
+        #   现在收集全部再报 —— 一次运行就能看全。
+        failure = failure or "未登记的函数级差异：%s" % "、".join(unregistered_fn)
     emit("")
 
     # 源侧落空 = 新包里没有可配对的同函数（同名条目在新包中已被配对用完）。
